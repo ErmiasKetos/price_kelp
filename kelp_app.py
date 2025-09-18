@@ -1375,6 +1375,26 @@ elif page == "Competitive Analysis":
         
         # Strategy analysis based on positioning and profitability
         strategy_recommendations = []
+ 
+        if 'profitability_data' not in locals():
+            profitability_data = []
+            for _, analyte in st.session_state.analytes.iterrows():
+                if analyte['active']:
+                    cost_info = get_cost_for_analyte(analyte['id'])
+                    if cost_info['found']:
+                        margin = calculate_profit_margin(analyte['price'], cost_info['total_internal_cost'])
+                        profit = analyte['price'] - cost_info['total_internal_cost']
+                        
+                        profitability_data.append({
+                            'Test ID': analyte['id'],
+                            'Test Name': analyte['name'],
+                            'Category': analyte['category'],
+                            'Price': analyte['price'],
+                            'Cost': cost_info['total_internal_cost'],
+                            'Profit': profit,
+                            'Margin %': margin,
+                            'Status': '🚨 Low' if margin < 50.0 else '✅ Good'
+                        })
         
         if positioning_data and profitability_data:
             # Combine positioning and profitability data
