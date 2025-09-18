@@ -1207,283 +1207,333 @@ elif page == "Test Kit Builder":
     with kit_tab2:
         st.subheader("Existing Test Kits")
         
-        # Initialize edit state
+        # Initialize edit state if not exists
         if 'editing_kit_id' not in st.session_state:
             st.session_state.editing_kit_id = None
+        if 'edit_form_data' not in st.session_state:
+            st.session_state.edit_form_data = {}
         
         if not st.session_state.test_kits.empty:
-            for _, kit in st.session_state.test_kits.iterrows():
-                if kit['active']:
-                    with st.expander(f"📦 {kit['kit_name']} ({kit['category']})", expanded=(st.session_state.editing_kit_id == kit['id'])):
+            active_kits = st.session_state.test_kits[st.session_state.test_kits['active']]
+            
+            for _, kit in active_kits.iterrows():
+                # Create expander that's expanded when editing
+                is_editing = st.session_state.editing_kit_id == kit['id']
+                
+                with st.expander(f"📦 {kit['kit_name']} ({kit['category']})", expanded=is_editing):
+                    
+                    if is_editing:
+                        # EDIT MODE - Use a proper form
+                        st.markdown("### 🔧 Edit Test Kit")
                         
-                        # Check if we're editing this kit
-                        if st.session_state.editing_kit_id == kit['id']:
-                            # EDIT MODE
-                            st.markdown("### 🔧 Edit Kit")
+                        # Get current values for the form
+                        current_analytes = kit['analyte_ids']
+                        current_metadata = kit.get('metadata', {})
+                        current_metal_counts = current_metadata.get('metal_counts', {}) if isinstance(current_metadata, dict) else {}
+                        
+                        # Form for editing
+                        with st.form(f"edit_kit_form_{kit['id']}", clear_on_submit=False):
+                            col1, col2 = st.columns(2)
                             
-                            with st.form(f"edit_kit_{kit['id']}"):
-                                col1, col2 = st.columns(2)
+                            with col1:
+                                edit_name = st.text_input("Kit Name", value=kit['kit_name'], key=f"name_{kit['id']}")
+                                edit_category = st.selectbox("Category", 
+                                    options=["Drinking Water", "Wastewater", "Industrial", "Specialty"],
+                                    index=["Drinking Water", "Wastewater", "Industrial", "Specialty"].index(kit['category']),
+                                    key=f"category_{kit['id']}")
+                                edit_description = st.text_area("Description", value=kit['description'], key=f"desc_{kit['id']}")
+                            
+                            with col2:
+                                edit_target = st.selectbox("Target Market", 
+                                    options=["Homeowners", "Community Systems", "Industrial", "General Public"],
+                                    index=["Homeowners", "Community Systems", "Industrial", "General Public"].index(kit['target_market']),
+                                    key=f"target_{kit['id']}")
+                                edit_application = st.selectbox("Application", 
+                                    options=["Basic Compliance", "Compliance Monitoring", "Initial Screening", "Waste Characterization"],
+                                    index=["Basic Compliance", "Compliance Monitoring", "Initial Screening", "Waste Characterization"].index(kit['application_type']),
+                                    key=f"app_{kit['id']}")
+                                edit_discount = st.slider("Kit Discount (%)", 0.0, 50.0, float(kit['discount_percent']), 1.0, key=f"discount_{kit['id']}")
+                            
+                            # Show current tests
+                            st.subheader("Current Tests in Kit")
+                            current_test_display = []
+                            for analyte_id in current_analytes:
+                                try:
+                                    analyte = st.session_state.analytes[st.session_state.analytes['id'] == analyte_id].iloc[0]
+                                    test_info = f"{analyte['name']} (${analyte['price']:.2f}) - {analyte['category']}"
+                                    current_test_display.append(test_info)
+                                except IndexError:
+                                    current_test_display.append(f"Test ID {analyte_id} (not found)")
+                            
+                            st.write("**Currently included:**")
+                            for i, test in enumerate(current_test_display, 1):
+                                st.write(f"{i}. {test}")
+                            
+                            # Test selection section
+                            st.subheader("Modify Test Selection")
+                            
+                            # Get all available tests for selection
+                            available_tests = st.session_state.analytes[st.session_state.analytes['active']].copy()
+                            
+                            # Create selection interface
+                            col1, col2 = st.columns(2)
+                            
+                            with col1:
+                                st.write("**Add Tests by Category:**")
+                                selected_categories = st.multiselect(
+                                    "Select categories to show tests:",
+                                    options=sorted(available_tests['category'].unique()),
+                                    default=[],
+                                    key=f"categories_{kit['id']}"
+                                )
+                            
+                            with col2:
+                                st.write("**Quick Actions:**")
+                                if st.checkbox("Keep all current tests", value=True, key=f"keep_current_{kit['id']}"):
+                                    base_selection = current_analytes.copy()
+                                else:
+                                    base_selection = []
                                 
-                                with col1:
-                                    edit_kit_name = st.text_input("Kit Name", value=kit['kit_name'])
-                                    edit_category = st.selectbox("Category", 
-                                        ["Drinking Water", "Wastewater", "Industrial", "Specialty"],
-                                        index=["Drinking Water", "Wastewater", "Industrial", "Specialty"].index(kit['category']))
-                                    edit_description = st.text_area("Description", value=kit['description'])
+                                if st.checkbox("Show all available tests", key=f"show_all_{kit['id']}"):
+                                    selected_categories = sorted(available_tests['category'].unique())
+                            
+                            # Show filtered tests for selection
+                            if selected_categories:
+                                filtered_tests = available_tests[available_tests['category'].isin(selected_categories)]
                                 
-                                with col2:
-                                    edit_target_market = st.selectbox("Target Market", 
-                                        ["Homeowners", "Community Systems", "Industrial", "General Public"],
-                                        index=["Homeowners", "Community Systems", "Industrial", "General Public"].index(kit['target_market']))
-                                    edit_application_type = st.selectbox("Application", 
-                                        ["Basic Compliance", "Compliance Monitoring", "Initial Screening", "Waste Characterization"],
-                                        index=["Basic Compliance", "Compliance Monitoring", "Initial Screening", "Waste Characterization"].index(kit['application_type']))
-                                    edit_discount_percent = st.slider("Kit Discount (%)", 0.0, 50.0, float(kit['discount_percent']), 1.0)
+                                # Create test selection
+                                test_options = []
+                                test_labels = []
+                                for _, test in filtered_tests.iterrows():
+                                    test_options.append(test['id'])
+                                    label = f"{test['name']} (${test['price']:.2f}) - {test['category']}"
+                                    test_labels.append(label)
                                 
-                                # Current analytes in kit
-                                st.subheader("Current Tests in Kit")
-                                current_analytes = kit['analyte_ids']
-                                
-                                # Display current tests
-                                current_test_names = []
-                                for analyte_id in current_analytes:
-                                    try:
-                                        analyte = st.session_state.analytes[st.session_state.analytes['id'] == analyte_id].iloc[0]
-                                        current_test_names.append(f"{analyte['name']} (${analyte['price']:.2f})")
-                                    except IndexError:
-                                        current_test_names.append(f"Test ID {analyte_id} (not found)")
-                                
-                                st.write("**Current tests:**")
-                                for test_name in current_test_names:
-                                    st.write(f"• {test_name}")
-                                
-                                # Analyte selection for editing
-                                st.subheader("Modify Test Selection")
-                                
-                                # Category filter for adding tests
-                                available_categories = st.multiselect(
-                                    "Filter by Test Category:",
-                                    options=st.session_state.analytes['category'].unique(),
-                                    default=["Physical Parameters"],
-                                    key=f"edit_categories_{kit['id']}"
+                                # Multiselect for test selection
+                                selected_test_ids = st.multiselect(
+                                    "Select tests for this kit:",
+                                    options=test_options,
+                                    default=[tid for tid in base_selection if tid in test_options],
+                                    format_func=lambda x: next(label for i, label in enumerate(test_labels) if test_options[i] == x),
+                                    key=f"selected_tests_{kit['id']}"
                                 )
                                 
-                                if available_categories:
-                                    filtered_analytes = st.session_state.analytes[
-                                        (st.session_state.analytes['category'].isin(available_categories)) & 
-                                        (st.session_state.analytes['active'])
-                                    ]
-                                    
-                                    # Only include current analytes that are in the filtered options
-                                    valid_defaults = [aid for aid in current_analytes if aid in filtered_analytes['id'].tolist()]
-                                    
-                                    edit_selected_analytes = st.multiselect(
-                                        "Select Tests for Kit:",
-                                        options=filtered_analytes['id'].tolist(),
-                                        default=valid_defaults,
-                                        format_func=lambda x: f"{filtered_analytes[filtered_analytes['id'] == x]['name'].iloc[0]} (${filtered_analytes[filtered_analytes['id'] == x]['price'].iloc[0]:.2f})",
-                                        help="Modify the test selection. Current tests are pre-selected if they match the category filter.",
-                                        key=f"edit_analytes_{kit['id']}"
-                                    )
-                                    
-                                    # Add button to include all current tests regardless of category filter
-                                    if len(valid_defaults) < len(current_analytes):
-                                        missing_count = len(current_analytes) - len(valid_defaults)
-                                        if st.checkbox(f"Include all {len(current_analytes)} current tests (including {missing_count} from other categories)", key=f"include_all_{kit['id']}"):
-                                            edit_selected_analytes = list(set(edit_selected_analytes + current_analytes))
-                                else:
-                                    # If no categories selected, use current analytes
-                                    edit_selected_analytes = current_analytes
-                                    st.warning("Please select at least one category to modify test selection.")
+                                # Combine with any current tests not shown
+                                all_selected = list(set(selected_test_ids + [tid for tid in base_selection if tid not in test_options]))
                                 
-                                # Handle tiered pricing for edited selection
-                                edit_metal_counts = kit.get('metadata', {}).get('metal_counts', {}) if isinstance(kit.get('metadata'), dict) else {}
-                                
-                                if edit_selected_analytes:
-                                    st.subheader("Configure Tiered Pricing Tests")
-                                    for analyte_id in edit_selected_analytes:
-                                        analyte = st.session_state.analytes[st.session_state.analytes['id'] == analyte_id].iloc[0]
-                                        if analyte.get('pricing_type') == 'tiered':
-                                            st.write(f"**{analyte['name']}** (Tiered Pricing)")
-                                            st.write(f"Available items: {analyte.get('metal_list', '')}")
-                                            current_count = edit_metal_counts.get(analyte_id, 3)
-                                            metal_count = st.slider(
-                                                f"Number of items for {analyte['name']}:",
+                            else:
+                                all_selected = base_selection
+                                st.info("Select categories above to add/modify tests, or use 'Keep all current tests' to maintain current selection.")
+                            
+                            # Handle tiered pricing
+                            tiered_counts = current_metal_counts.copy()
+                            if all_selected:
+                                st.subheader("Configure Tiered Pricing")
+                                has_tiered = False
+                                for test_id in all_selected:
+                                    try:
+                                        test = st.session_state.analytes[st.session_state.analytes['id'] == test_id].iloc[0]
+                                        if test.get('pricing_type') == 'tiered':
+                                            has_tiered = True
+                                            st.write(f"**{test['name']}** (Tiered Pricing)")
+                                            current_count = tiered_counts.get(test_id, 3)
+                                            new_count = st.slider(
+                                                f"Number of items for {test['name']}:",
                                                 min_value=1,
                                                 max_value=24,
                                                 value=current_count,
-                                                key=f"edit_metal_count_{analyte_id}"
+                                                key=f"tier_{test_id}_{kit['id']}"
                                             )
-                                            edit_metal_counts[analyte_id] = metal_count
+                                            tiered_counts[test_id] = new_count
+                                    except IndexError:
+                                        continue
                                 
-                                # Preview updated kit pricing
-                                if edit_selected_analytes:
-                                    st.subheader("Updated Kit Pricing Preview")
-                                    edit_pricing = calculate_kit_pricing(edit_selected_analytes, edit_discount_percent, edit_metal_counts)
+                                if not has_tiered:
+                                    st.info("No tiered pricing tests selected.")
+                            
+                            # Show pricing preview
+                            if all_selected:
+                                st.subheader("Updated Pricing Preview")
+                                try:
+                                    preview_pricing = calculate_kit_pricing(all_selected, edit_discount, tiered_counts)
                                     
                                     col1, col2, col3, col4 = st.columns(4)
                                     with col1:
-                                        st.metric("Individual Total", f"${edit_pricing['individual_total']:.2f}")
+                                        st.metric("Individual Total", f"${preview_pricing['individual_total']:.2f}")
                                     with col2:
-                                        st.metric("Kit Price", f"${edit_pricing['kit_price']:.2f}")
+                                        st.metric("Kit Price", f"${preview_pricing['kit_price']:.2f}")
                                     with col3:
-                                        st.metric("Customer Savings", f"${edit_pricing['savings']:.2f}")
+                                        st.metric("Customer Savings", f"${preview_pricing['savings']:.2f}")
                                     with col4:
-                                        if edit_pricing['total_cost'] > 0:
-                                            st.metric("Profit Margin", f"{edit_pricing['margin_percent']:.1f}%")
-                                
-                                # Form buttons
-                                col1, col2 = st.columns(2)
-                                with col1:
-                                    save_changes = st.form_submit_button("💾 Save Changes", type="primary")
-                                with col2:
-                                    cancel_edit = st.form_submit_button("❌ Cancel")
-                                
-                                if save_changes:
-                                    # Update the kit
+                                        if preview_pricing.get('total_cost', 0) > 0:
+                                            st.metric("Profit Margin", f"{preview_pricing['margin_percent']:.1f}%")
+                                    
+                                    st.write(f"**Test Count:** {len(all_selected)}")
+                                except Exception as e:
+                                    st.error(f"Error calculating pricing: {str(e)}")
+                            
+                            # Form buttons
+                            st.markdown("---")
+                            col1, col2, col3 = st.columns(3)
+                            
+                            with col1:
+                                save_button = st.form_submit_button("💾 Save Changes", type="primary")
+                            with col2:
+                                cancel_button = st.form_submit_button("❌ Cancel Edit")
+                            with col3:
+                                preview_button = st.form_submit_button("👁️ Preview Only")
+                            
+                            # Handle form submission
+                            if save_button and all_selected:
+                                try:
+                                    # Find kit index
                                     kit_idx = st.session_state.test_kits[st.session_state.test_kits['id'] == kit['id']].index[0]
                                     
-                                    # Log changes for audit trail
-                                    changes_made = []
-                                    if edit_kit_name != kit['kit_name']:
-                                        log_audit('test_kits', kit['id'], 'kit_name', kit['kit_name'], edit_kit_name, 'UPDATE')
-                                        changes_made.append(f"Name: '{kit['kit_name']}' → '{edit_kit_name}'")
+                                    # Log changes
+                                    changes = []
+                                    if edit_name != kit['kit_name']:
+                                        changes.append(f"Name: '{kit['kit_name']}' → '{edit_name}'")
+                                        log_audit('test_kits', kit['id'], 'kit_name', kit['kit_name'], edit_name, 'UPDATE')
                                     
-                                    if edit_discount_percent != kit['discount_percent']:
-                                        log_audit('test_kits', kit['id'], 'discount_percent', str(kit['discount_percent']), str(edit_discount_percent), 'UPDATE')
-                                        changes_made.append(f"Discount: {kit['discount_percent']}% → {edit_discount_percent}%")
+                                    if edit_discount != kit['discount_percent']:
+                                        changes.append(f"Discount: {kit['discount_percent']}% → {edit_discount}%")
+                                        log_audit('test_kits', kit['id'], 'discount_percent', str(kit['discount_percent']), str(edit_discount), 'UPDATE')
                                     
-                                    if edit_selected_analytes != kit['analyte_ids']:
-                                        log_audit('test_kits', kit['id'], 'analyte_ids', str(kit['analyte_ids']), str(edit_selected_analytes), 'UPDATE')
-                                        changes_made.append(f"Test count: {len(kit['analyte_ids'])} → {len(edit_selected_analytes)}")
+                                    if set(all_selected) != set(current_analytes):
+                                        changes.append(f"Tests: {len(current_analytes)} → {len(all_selected)}")
+                                        log_audit('test_kits', kit['id'], 'analyte_ids', str(current_analytes), str(all_selected), 'UPDATE')
                                     
-                                    # Update all fields
-                                    update_kit_safely(kit_idx, {
-                                        'kit_name': edit_kit_name,
-                                        'category': edit_category,
-                                        'description': edit_description,
-                                        'target_market': edit_target_market,
-                                        'application_type': edit_application_type,
-                                        'discount_percent': edit_discount_percent,
-                                        'analyte_ids': edit_selected_analytes,
-                                        'metadata': {'metal_counts': edit_metal_counts} if edit_metal_counts else {}
-                                    })
+                                    # Update the kit
+                                    st.session_state.test_kits.at[kit_idx, 'kit_name'] = edit_name
+                                    st.session_state.test_kits.at[kit_idx, 'category'] = edit_category
+                                    st.session_state.test_kits.at[kit_idx, 'description'] = edit_description
+                                    st.session_state.test_kits.at[kit_idx, 'target_market'] = edit_target
+                                    st.session_state.test_kits.at[kit_idx, 'application_type'] = edit_application
+                                    st.session_state.test_kits.at[kit_idx, 'discount_percent'] = edit_discount
+                                    st.session_state.test_kits.at[kit_idx, 'analyte_ids'] = all_selected
+                                    st.session_state.test_kits.at[kit_idx, 'metadata'] = {'metal_counts': tiered_counts} if tiered_counts else {}
                                     
                                     # Clear edit state
                                     st.session_state.editing_kit_id = None
                                     
                                     # Show success message
-                                    if changes_made:
-                                        st.success(f"Kit updated successfully! Changes: {', '.join(changes_made)}")
+                                    if changes:
+                                        st.success(f"✅ Kit updated successfully! Changes: {', '.join(changes)}")
                                     else:
-                                        st.info("No changes were made to the kit.")
+                                        st.info("ℹ️ Kit saved (no changes detected)")
                                     
                                     st.rerun()
-                                
-                                if cancel_edit:
-                                    st.session_state.editing_kit_id = None
-                                    st.rerun()
+                                    
+                                except Exception as e:
+                                    st.error(f"❌ Error saving kit: {str(e)}")
+                            
+                            elif save_button and not all_selected:
+                                st.error("❌ Cannot save kit with no tests selected!")
+                            
+                            elif cancel_button:
+                                st.session_state.editing_kit_id = None
+                                st.info("✏️ Edit cancelled")
+                                st.rerun()
+                            
+                            elif preview_button:
+                                st.info("👁️ Preview mode - changes not saved")
+                    
+                    else:
+                        # VIEW MODE - Show kit details
+                        metal_counts = kit.get('metadata', {}).get('metal_counts', {}) if isinstance(kit.get('metadata'), dict) else {}
+                        pricing = calculate_kit_pricing(kit['analyte_ids'], kit['discount_percent'], metal_counts)
                         
-                        else:
-                            # VIEW MODE
-                            # Get metal counts from metadata
-                            metal_counts = kit.get('metadata', {}).get('metal_counts', {}) if isinstance(kit.get('metadata'), dict) else {}
-                            
-                            # Calculate kit pricing
-                            pricing = calculate_kit_pricing(kit['analyte_ids'], kit['discount_percent'], metal_counts)
-                            
-                            col1, col2 = st.columns(2)
-                            with col1:
-                                st.write(f"**Description:** {kit['description']}")
-                                st.write(f"**Target Market:** {kit['target_market']}")
-                                st.write(f"**Application:** {kit['application_type']}")
-                                st.write(f"**Discount:** {kit['discount_percent']:.1f}%")
-                            
-                            with col2:
-                                st.metric("Kit Price", f"${pricing['kit_price']:.2f}")
-                                st.metric("Test Count", pricing['test_count'])
-                                st.metric("Customer Savings", f"${pricing['savings']:.2f}")
-                                if pricing['total_cost'] > 0:
-                                    st.metric("Profit Margin", f"{pricing['margin_percent']:.1f}%")
-                            
-                            # Show included tests
-                            included_tests = []
-                            for analyte_id in kit['analyte_ids']:
-                                try:
-                                    analyte = st.session_state.analytes[st.session_state.analytes['id'] == analyte_id].iloc[0]
-                                    test_name = analyte['name']
-                                    test_price = analyte['price']
-                                    
-                                    # Handle tiered pricing display
-                                    if analyte.get('pricing_type') == 'tiered' and analyte_id in metal_counts:
-                                        metal_count = metal_counts[analyte_id]
-                                        additional_price = analyte.get('additional_price', 0)
-                                        total_price = test_price + (additional_price * (metal_count - 1))
-                                        test_name += f" ({metal_count} items: ${total_price:.2f})"
-                                    else:
-                                        test_name += f" (${test_price:.2f})"
-                                    
-                                    included_tests.append(test_name)
-                                except IndexError:
-                                    included_tests.append(f"Test ID {analyte_id} (not found)")
-                            
-                            st.write("**Included Tests:**")
-                            for test in included_tests:
-                                st.write(f"• {test}")
-                            
-                            # Action buttons
-                            col1, col2, col3 = st.columns(3)
-                            
-                            with col1:
-                                if st.button(f"✏️ Edit Kit", key=f"edit_{kit['id']}"):
-                                    st.session_state.editing_kit_id = kit['id']
-                                    st.rerun()
-                            
-                            with col2:
-                                if st.button(f"📋 Duplicate Kit", key=f"duplicate_{kit['id']}"):
-                                    # Create duplicate kit
-                                    new_kit = pd.DataFrame([{
-                                        'id': st.session_state.next_kit_id,
-                                        'kit_name': f"{kit['kit_name']} (Copy)",
-                                        'category': kit['category'],
-                                        'description': kit['description'],
-                                        'target_market': kit['target_market'],
-                                        'application_type': kit['application_type'],
-                                        'discount_percent': kit['discount_percent'],
-                                        'active': True,
-                                        'analyte_ids': kit['analyte_ids'].copy() if isinstance(kit['analyte_ids'], list) else kit['analyte_ids'],
-                                        'metadata': kit.get('metadata', {}).copy() if isinstance(kit.get('metadata'), dict) else {}
-                                    }])
-                                    
-                                    st.session_state.test_kits = pd.concat([st.session_state.test_kits, new_kit], ignore_index=True)
-                                    log_audit('test_kits', st.session_state.next_kit_id, 'all', '', 'Duplicated from kit ' + str(kit['id']), 'INSERT')
-                                    st.session_state.next_kit_id += 1
-                                    
-                                    st.success(f"Kit duplicated as '{kit['kit_name']} (Copy)'!")
-                                    st.rerun()
-                            
-                            with col3:
-                                if st.button(f"🗑️ Deactivate", key=f"deactivate_{kit['id']}"):
-                                    kit_idx = st.session_state.test_kits[st.session_state.test_kits['id'] == kit['id']].index[0]
-                                    st.session_state.test_kits.at[kit_idx, 'active'] = False
-                                    log_audit('test_kits', kit['id'], 'active', 'True', 'False', 'UPDATE')
-                                    st.success(f"Kit '{kit['kit_name']}' deactivated!")
-                                    st.rerun()
+                        # Kit details
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.write(f"**Description:** {kit['description']}")
+                            st.write(f"**Target Market:** {kit['target_market']}")
+                            st.write(f"**Application:** {kit['application_type']}")
+                            st.write(f"**Discount:** {kit['discount_percent']:.1f}%")
+                        
+                        with col2:
+                            st.metric("Kit Price", f"${pricing['kit_price']:.2f}")
+                            st.metric("Test Count", len(kit['analyte_ids']))
+                            st.metric("Customer Savings", f"${pricing['savings']:.2f}")
+                            if pricing.get('total_cost', 0) > 0:
+                                st.metric("Profit Margin", f"{pricing['margin_percent']:.1f}%")
+                        
+                        # Show included tests
+                        st.write("**Included Tests:**")
+                        for i, analyte_id in enumerate(kit['analyte_ids'], 1):
+                            try:
+                                analyte = st.session_state.analytes[st.session_state.analytes['id'] == analyte_id].iloc[0]
+                                test_name = f"{i}. {analyte['name']}"
+                                test_price = analyte['price']
+                                
+                                if analyte.get('pricing_type') == 'tiered' and analyte_id in metal_counts:
+                                    metal_count = metal_counts[analyte_id]
+                                    additional = analyte.get('additional_price', 0)
+                                    total_price = test_price + (additional * (metal_count - 1))
+                                    test_name += f" ({metal_count} items: ${total_price:.2f})"
+                                else:
+                                    test_name += f" (${test_price:.2f})"
+                                
+                                st.write(test_name)
+                            except IndexError:
+                                st.write(f"{i}. Test ID {analyte_id} (not found)")
+                        
+                        # Action buttons
+                        st.markdown("---")
+                        col1, col2, col3 = st.columns(3)
+                        
+                        with col1:
+                            if st.button("✏️ Edit Kit", key=f"btn_edit_{kit['id']}"):
+                                st.session_state.editing_kit_id = kit['id']
+                                st.rerun()
+                        
+                        with col2:
+                            if st.button("📋 Duplicate", key=f"btn_dup_{kit['id']}"):
+                                new_kit = pd.DataFrame([{
+                                    'id': st.session_state.next_kit_id,
+                                    'kit_name': f"{kit['kit_name']} (Copy)",
+                                    'category': kit['category'],
+                                    'description': kit['description'],
+                                    'target_market': kit['target_market'],
+                                    'application_type': kit['application_type'],
+                                    'discount_percent': kit['discount_percent'],
+                                    'active': True,
+                                    'analyte_ids': kit['analyte_ids'].copy() if isinstance(kit['analyte_ids'], list) else [kit['analyte_ids']],
+                                    'metadata': kit.get('metadata', {}).copy() if isinstance(kit.get('metadata'), dict) else {}
+                                }])
+                                
+                                st.session_state.test_kits = pd.concat([st.session_state.test_kits, new_kit], ignore_index=True)
+                                log_audit('test_kits', st.session_state.next_kit_id, 'all', '', f'Duplicated from kit {kit["id"]}', 'INSERT')
+                                st.session_state.next_kit_id += 1
+                                
+                                st.success(f"Kit duplicated as '{kit['kit_name']} (Copy)'!")
+                                st.rerun()
+                        
+                        with col3:
+                            if st.button("🗑️ Deactivate", key=f"btn_deact_{kit['id']}"):
+                                kit_idx = st.session_state.test_kits[st.session_state.test_kits['id'] == kit['id']].index[0]
+                                st.session_state.test_kits.at[kit_idx, 'active'] = False
+                                log_audit('test_kits', kit['id'], 'active', 'True', 'False', 'UPDATE')
+                                st.success(f"Kit '{kit['kit_name']}' deactivated!")
+                                st.rerun()
         
         else:
             st.info("No test kits created yet. Use the 'Build New Kit' tab to create your first kit.")
         
-        # Show deactivated kits section
+        # Show deactivated kits
         deactivated_kits = st.session_state.test_kits[~st.session_state.test_kits['active']]
         if not deactivated_kits.empty:
+            st.markdown("---")
             st.subheader("📁 Deactivated Kits")
+            
             with st.expander(f"Show {len(deactivated_kits)} Deactivated Kits"):
                 for _, kit in deactivated_kits.iterrows():
-                    col1, col2 = st.columns([3, 1])
+                    col1, col2 = st.columns([4, 1])
                     with col1:
                         st.write(f"**{kit['kit_name']}** ({kit['category']}) - {len(kit['analyte_ids'])} tests")
+                        st.caption(kit['description'])
                     with col2:
-                        if st.button(f"🔄 Reactivate", key=f"reactivate_{kit['id']}"):
+                        if st.button("🔄 Reactivate", key=f"reactivate_{kit['id']}"):
                             kit_idx = st.session_state.test_kits[st.session_state.test_kits['id'] == kit['id']].index[0]
                             st.session_state.test_kits.at[kit_idx, 'active'] = True
                             log_audit('test_kits', kit['id'], 'active', 'False', 'True', 'UPDATE')
