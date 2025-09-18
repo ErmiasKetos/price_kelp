@@ -813,8 +813,6 @@ elif page == "Audit Trail":
 
 # Footer
 st.sidebar.markdown("---")
-st.sidebar.markdown("**Water Testing Lab Management System**")
-st.sidebar.markdown("Version 2.0 - Cloud Ready")
 active_analytes_count = len(st.session_state.analytes[st.session_state.analytes['active']])
 active_kits_count = len(st.session_state.test_kits[st.session_state.test_kits['active']])
 st.sidebar.markdown(f"Database: {active_analytes_count} analytes, {active_kits_count} kits")
