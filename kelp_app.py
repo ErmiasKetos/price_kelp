@@ -120,17 +120,37 @@ def init_session_state():
             {"id": 97, "name": "25 PFAS Panel (Drinking Water)", "method": "EPA 533", "technology": "HPLC-MS", "category": "Organics", "subcategory": "PFAS", "price": 850.00, "sku": "LAB-104.02-001-EPA533", "active": True},
             {"id": 98, "name": "PFAS 18‑Compound Panel", "method": "EPA 537.1", "technology": "HPLC-MS", "category": "Organics", "subcategory": "PFAS", "price": 650.00, "sku": "LAB-104.02-002-EPA537.1", "active": True},
             {"id": 99, "name": "PFAS 3-Compound Panel: PFNA, PFOA, PFOS", "method": "EPA 537.1", "technology": "HPLC-MS", "category": "Organics", "subcategory": "PFAS", "price": 275.00, "sku": "LAB-104.02-003-EPA537.1", "active": True},
-            {"id": 100, "name": "First Metal (24 metals)", "method": "EPA 6020B", "technology": "ICP-MS", "category": "Metals", "subcategory": "Metal Panels", "price": 350.00, "sku": "LAB-103.06-001-EPA6020B", "active": True},
+            {"id": 100, "name": "First Metal (24 metals available)", "method": "EPA 6020B", "technology": "ICP-MS", "category": "Metals", "subcategory": "Metal Panels", "price": 350.00, "sku": "LAB-103.06-001-EPA6020B", "active": True, "pricing_type": "tiered", "additional_price": 45.00, "metal_list": "Al, Sb, As, Ba, Be, Cd, Ca, Cr, Co, Cu, Fe, Pb, Mg, Mn, Hg, Mo, Ni, K, Se, Ag, Na, Tl, V, Zn"},
             {"id": 101, "name": "RCRA (8 metals: Ag, As, Ba, Cd, Cr, Hg, Pb, Se)", "method": "EPA 6020B", "technology": "ICP-MS", "category": "Metals", "subcategory": "Metal Panels", "price": 450.00, "sku": "LAB-103.06-002-EPA6020B", "active": True}
-        ])
+                ])
+        
+        # Add default fields for existing analytes that don't have the new fields
+        if 'pricing_type' not in st.session_state.analytes.columns:
+            st.session_state.analytes['pricing_type'] = 'standard'
+        if 'additional_price' not in st.session_state.analytes.columns:
+            st.session_state.analytes['additional_price'] = 0.0
+        if 'metal_list' not in st.session_state.analytes.columns:
+            st.session_state.analytes['metal_list'] = ''
+        
+        # Ensure the special pricing analyte has correct values
+        first_metal_idx = st.session_state.analytes[st.session_state.analytes['id'] == 100].index
+        if len(first_metal_idx) > 0:
+            idx = first_metal_idx[0]
+            st.session_state.analytes.at[idx, 'pricing_type'] = 'tiered'
+            st.session_state.analytes.at[idx, 'additional_price'] = 45.0
+            st.session_state.analytes.at[idx, 'metal_list'] = 'Al, Sb, As, Ba, Be, Cd, Ca, Cr, Co, Cu, Fe, Pb, Mg, Mn, Hg, Mo, Ni, K, Se, Ag, Na, Tl, V, Zn'
     
     if 'test_kits' not in st.session_state:
         st.session_state.test_kits = pd.DataFrame([
-            {"id": 1, "kit_name": "Basic Drinking Water Kit", "category": "Drinking Water", "description": "Essential safety parameters for homeowners and small systems", "target_market": "Homeowners", "application_type": "Basic Compliance", "discount_percent": 20.0, "active": True, "analyte_ids": [1, 2, 42, 7, 8, 9, 22, 21]},
-            {"id": 2, "kit_name": "Standard Drinking Water Kit", "category": "Drinking Water", "description": "Comprehensive testing for primary drinking water standards", "target_market": "Community Systems", "application_type": "Compliance Monitoring", "discount_percent": 22.0, "active": True, "analyte_ids": [1, 2, 42, 7, 8, 9, 22, 21, 16, 17, 19, 20, 24, 26, 15, 10, 12, 39, 40]},
-            {"id": 3, "kit_name": "PFAS Screening Kit", "category": "Specialty", "description": "Emerging contaminants analysis", "target_market": "General Public", "application_type": "Initial Screening", "discount_percent": 0.0, "active": True, "analyte_ids": [38]},
-            {"id": 4, "kit_name": "RCRA Metals Kit", "category": "Specialty", "description": "Hazardous waste characterization", "target_market": "Industrial", "application_type": "Waste Characterization", "discount_percent": 20.0, "active": True, "analyte_ids": [27, 16, 17, 19, 20, 24, 22, 26]}
+            {"id": 1, "kit_name": "Basic Drinking Water Kit", "category": "Drinking Water", "description": "Essential safety parameters for homeowners and small systems", "target_market": "Homeowners", "application_type": "Basic Compliance", "discount_percent": 20.0, "active": True, "analyte_ids": [1, 2, 42, 7, 8, 9, 22, 21], "metadata": {}},
+            {"id": 2, "kit_name": "Standard Drinking Water Kit", "category": "Drinking Water", "description": "Comprehensive testing for primary drinking water standards", "target_market": "Community Systems", "application_type": "Compliance Monitoring", "discount_percent": 22.0, "active": True, "analyte_ids": [1, 2, 42, 7, 8, 9, 22, 21, 16, 17, 19, 20, 24, 26, 15, 10, 12, 39, 40], "metadata": {}},
+            {"id": 3, "kit_name": "PFAS Screening Kit", "category": "Specialty", "description": "Emerging contaminants analysis", "target_market": "General Public", "application_type": "Initial Screening", "discount_percent": 0.0, "active": True, "analyte_ids": [38], "metadata": {}},
+            {"id": 4, "kit_name": "RCRA Metals Kit", "category": "Specialty", "description": "Hazardous waste characterization", "target_market": "Industrial", "application_type": "Waste Characterization", "discount_percent": 20.0, "active": True, "analyte_ids": [27, 16, 17, 19, 20, 24, 22, 26], "metadata": {}}
         ])
+        
+        # Add metadata column if it doesn't exist
+        if 'metadata' not in st.session_state.test_kits.columns:
+            st.session_state.test_kits['metadata'] = [{}] * len(st.session_state.test_kits)
     
     if 'audit_trail' not in st.session_state:
         st.session_state.audit_trail = pd.DataFrame(columns=['timestamp', 'table_name', 'record_id', 'field_name', 'old_value', 'new_value', 'change_type', 'user_name'])
@@ -164,10 +184,26 @@ def update_kit_safely(kit_idx: int, field_updates: Dict):
         else:
             st.session_state.test_kits.at[kit_idx, field] = value
 
-def calculate_kit_pricing(analyte_ids: List[int], discount_percent: float) -> Dict:
-    """Calculate kit pricing based on selected analytes"""
+def calculate_kit_pricing(analyte_ids: List[int], discount_percent: float, metal_counts: Dict = None) -> Dict:
+    """Calculate kit pricing based on selected analytes, including tiered pricing"""
+    if metal_counts is None:
+        metal_counts = {}
+    
     selected_analytes = st.session_state.analytes[st.session_state.analytes['id'].isin(analyte_ids) & st.session_state.analytes['active']]
-    individual_total = selected_analytes['price'].sum()
+    individual_total = 0
+    
+    for _, analyte in selected_analytes.iterrows():
+        if analyte.get('pricing_type') == 'tiered' and analyte['id'] in metal_counts:
+            # Calculate tiered pricing
+            metal_count = metal_counts[analyte['id']]
+            base_price = analyte['price']
+            additional_price = analyte.get('additional_price', 0)
+            total_price = base_price + (additional_price * (metal_count - 1))
+            individual_total += total_price
+        else:
+            # Standard pricing
+            individual_total += analyte['price']
+    
     kit_price = individual_total * (1 - discount_percent / 100)
     savings = individual_total - kit_price
     
@@ -264,14 +300,21 @@ elif page == "Analyte Management":
             filtered_analytes = filtered_analytes[filtered_analytes['name'].str.contains(search_term, case=False, na=False)]
         
         if not filtered_analytes.empty:
+            # Add a display column for pricing information
+            display_analytes = filtered_analytes.copy()
+            display_analytes['pricing_display'] = display_analytes.apply(
+                lambda row: f"${row['price']:.2f} (+ ${row['additional_price']:.2f} each additional)" 
+                if row.get('pricing_type') == 'tiered' else f"${row['price']:.2f}", axis=1
+            )
+            
             # Make dataframe editable
             edited_df = st.data_editor(
-                filtered_analytes[['id', 'name', 'method', 'technology', 'category', 'subcategory', 'price', 'sku']],
+                display_analytes[['id', 'name', 'method', 'technology', 'category', 'subcategory', 'pricing_display', 'sku']],
                 key="analyte_editor",
                 use_container_width=True,
                 column_config={
                     "id": st.column_config.NumberColumn("ID", disabled=True),
-                    "price": st.column_config.NumberColumn("Price ($)", format="$%.2f"),
+                    "pricing_display": st.column_config.TextColumn("Pricing", disabled=True),
                     "name": st.column_config.TextColumn("Analyte Name", required=True),
                     "method": st.column_config.TextColumn("Method", required=True),
                     "technology": st.column_config.TextColumn("Technology"),
@@ -280,6 +323,69 @@ elif page == "Analyte Management":
                     "sku": st.column_config.TextColumn("SKU")
                 }
             )
+            
+            # Show special pricing details for tiered items
+            tiered_items = filtered_analytes[filtered_analytes.get('pricing_type', 'standard') == 'tiered']
+            if not tiered_items.empty:
+                st.subheader("Special Pricing Details")
+                for _, item in tiered_items.iterrows():
+                    with st.expander(f"{item['name']} - Tiered Pricing Details"):
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.write(f"**Base Price (First Metal):** ${item['price']:.2f}")
+                            st.write(f"**Additional Metal Price:** ${item.get('additional_price', 0):.2f} each")
+                        with col2:
+                            if item.get('metal_list'):
+                                st.write("**Available Metals:**")
+                                metals = item['metal_list'].split(', ')
+                                # Display metals in a nice grid
+                                metal_cols = st.columns(4)
+                                for i, metal in enumerate(metals):
+                                    with metal_cols[i % 4]:
+                                        st.write(f"• {metal}")
+            
+            # Edit pricing button for tiered items
+            if not tiered_items.empty:
+                st.subheader("Edit Special Pricing")
+                selected_tiered = st.selectbox("Select tiered pricing item to edit:", 
+                                             tiered_items['name'].tolist(), 
+                                             key="tiered_select")
+                
+                if selected_tiered:
+                    tiered_item = tiered_items[tiered_items['name'] == selected_tiered].iloc[0]
+                    
+                    with st.form(f"edit_tiered_pricing_{tiered_item['id']}"):
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            new_base_price = st.number_input("Base Price (First Metal) $", 
+                                                           value=float(tiered_item['price']), 
+                                                           min_value=0.0, step=0.01)
+                        with col2:
+                            new_additional_price = st.number_input("Additional Metal Price $", 
+                                                                 value=float(tiered_item.get('additional_price', 0)), 
+                                                                 min_value=0.0, step=0.01)
+                        
+                        new_metal_list = st.text_area("Available Metals (comma-separated):", 
+                                                    value=tiered_item.get('metal_list', ''))
+                        
+                        if st.form_submit_button("Update Tiered Pricing", type="primary"):
+                            item_idx = st.session_state.analytes[st.session_state.analytes['id'] == tiered_item['id']].index[0]
+                            
+                            # Log changes
+                            if tiered_item['price'] != new_base_price:
+                                log_audit('analytes', tiered_item['id'], 'price', str(tiered_item['price']), str(new_base_price), 'UPDATE')
+                            if tiered_item.get('additional_price', 0) != new_additional_price:
+                                log_audit('analytes', tiered_item['id'], 'additional_price', str(tiered_item.get('additional_price', 0)), str(new_additional_price), 'UPDATE')
+                            if tiered_item.get('metal_list', '') != new_metal_list:
+                                log_audit('analytes', tiered_item['id'], 'metal_list', str(tiered_item.get('metal_list', '')), new_metal_list, 'UPDATE')
+                            
+                            # Update the values
+                            st.session_state.analytes.at[item_idx, 'price'] = new_base_price
+                            st.session_state.analytes.at[item_idx, 'additional_price'] = new_additional_price
+                            st.session_state.analytes.at[item_idx, 'metal_list'] = new_metal_list
+                            
+                            st.success(f"Updated tiered pricing for {selected_tiered}")
+                            st.rerun()
             
             if st.button("Save Changes", type="primary"):
                 # Update session state with changes
@@ -304,6 +410,8 @@ elif page == "Analyte Management":
     with tab2:
         st.subheader("Add New Analyte")
         
+        pricing_type = st.radio("Pricing Type:", ["Standard Pricing", "Tiered Pricing (e.g., metals panel)"], key="pricing_type_selection")
+        
         with st.form("add_analyte_form"):
             col1, col2 = st.columns(2)
             
@@ -312,10 +420,18 @@ elif page == "Analyte Management":
                 new_method = st.text_input("Method*")
                 new_technology = st.text_input("Technology")
                 new_category = st.selectbox("Category*", ["Metals", "Inorganics", "Organics", "Physical Parameters"])
+                new_subcategory = st.text_input("Subcategory")
             
             with col2:
-                new_subcategory = st.text_input("Subcategory")
-                new_price = st.number_input("Price ($)*", min_value=0.0, step=0.01)
+                if pricing_type == "Standard Pricing":
+                    new_price = st.number_input("Price ($)*", min_value=0.0, step=0.01)
+                    new_additional_price = 0.0
+                    new_metal_list = ""
+                else:  # Tiered Pricing
+                    new_price = st.number_input("Base Price (First Item) ($)*", min_value=0.0, step=0.01)
+                    new_additional_price = st.number_input("Additional Item Price ($)*", min_value=0.0, step=0.01)
+                    new_metal_list = st.text_area("Available Items (comma-separated):", placeholder="Al, Sb, As, Ba, Be, Cd...")
+                
                 new_sku = st.text_input("SKU")
             
             submitted = st.form_submit_button("Add Analyte", type="primary")
@@ -335,14 +451,18 @@ elif page == "Analyte Management":
                             'subcategory': new_subcategory,
                             'price': new_price,
                             'sku': new_sku,
-                            'active': True
+                            'active': True,
+                            'pricing_type': 'tiered' if pricing_type == "Tiered Pricing" else 'standard',
+                            'additional_price': new_additional_price,
+                            'metal_list': new_metal_list
                         }])
                         
                         st.session_state.analytes = pd.concat([st.session_state.analytes, new_analyte], ignore_index=True)
                         log_audit('analytes', st.session_state.next_analyte_id, 'all', '', 'New analyte created', 'INSERT')
                         st.session_state.next_analyte_id += 1
                         
-                        st.success(f"Analyte '{new_name}' added successfully!")
+                        pricing_display = f"Base: ${new_price:.2f}, Additional: ${new_additional_price:.2f}" if pricing_type == "Tiered Pricing" else f"${new_price:.2f}"
+                        st.success(f"Analyte '{new_name}' added successfully! Pricing: {pricing_display}")
                         st.rerun()
                 else:
                     st.error("Please fill in all required fields (marked with *).")
@@ -448,22 +568,52 @@ elif page == "Test Kit Builder":
             # Group by category for better UX
             categories = active_analytes['category'].unique()
             selected_analyte_ids = []
+            selected_metal_counts = {}  # Track metal counts for tiered pricing
             
             for cat in sorted(categories):
                 with st.expander(f"{cat} ({len(active_analytes[active_analytes['category'] == cat])} tests)"):
                     cat_analytes = active_analytes[active_analytes['category'] == cat]
                     for _, row in cat_analytes.iterrows():
-                        if st.checkbox(f"{row['name']} - {row['method']} (${row['price']:.2f})", key=f"analyte_{row['id']}"):
-                            selected_analyte_ids.append(row['id'])
+                        # Check if this is a tiered pricing item
+                        if row.get('pricing_type') == 'tiered':
+                            col1, col2 = st.columns([3, 1])
+                            with col1:
+                                if st.checkbox(f"{row['name']} - {row['method']}", key=f"analyte_{row['id']}"):
+                                    selected_analyte_ids.append(row['id'])
+                            with col2:
+                                if f"analyte_{row['id']}" in st.session_state and st.session_state[f"analyte_{row['id']}"]:
+                                    metal_count = st.number_input(
+                                        f"# of metals", 
+                                        min_value=1, 
+                                        max_value=24, 
+                                        value=1, 
+                                        key=f"metal_count_{row['id']}",
+                                        help=f"Base: ${row['price']:.2f}, +${row.get('additional_price', 0):.2f} each additional"
+                                    )
+                                    selected_metal_counts[row['id']] = metal_count
+                        else:
+                            if st.checkbox(f"{row['name']} - {row['method']} (${row['price']:.2f})", key=f"analyte_{row['id']}"):
+                                selected_analyte_ids.append(row['id'])
             
             if selected_analyte_ids:
-                pricing = calculate_kit_pricing(selected_analyte_ids, discount_percent)
+                pricing = calculate_kit_pricing(selected_analyte_ids, discount_percent, selected_metal_counts)
                 
                 st.write(f"**Kit Summary:**")
                 st.write(f"- Number of tests: {pricing['test_count']}")
                 st.write(f"- Individual total: ${pricing['individual_total']:.2f}")
                 st.write(f"- Kit price ({discount_percent}% discount): ${pricing['kit_price']:.2f}")
                 st.write(f"- Customer saves: ${pricing['savings']:.2f}")
+                
+                # Show detailed breakdown for tiered items
+                if selected_metal_counts:
+                    st.write("**Tiered Pricing Details:**")
+                    for analyte_id, metal_count in selected_metal_counts.items():
+                        analyte = active_analytes[active_analytes['id'] == analyte_id].iloc[0]
+                        base_price = analyte['price']
+                        additional_price = analyte.get('additional_price', 0)
+                        total_price = base_price + (additional_price * (metal_count - 1))
+                        st.write(f"  - {analyte['name']}: {metal_count} metals = ${total_price:.2f}")
+                        st.write(f"    (${base_price:.2f} base + ${additional_price:.2f} × {metal_count-1} additional)")
             
             submitted = st.form_submit_button("Create Test Kit", type="primary")
             
@@ -473,6 +623,9 @@ elif page == "Test Kit Builder":
                     if kit_name in st.session_state.test_kits['kit_name'].values:
                         st.error("Kit name must be unique. Please choose a different name.")
                     else:
+                        # Store metal counts in the kit data
+                        kit_metadata = {'metal_counts': selected_metal_counts} if selected_metal_counts else {}
+                        
                         new_kit = pd.DataFrame([{
                             'id': st.session_state.next_kit_id,
                             'kit_name': kit_name,
@@ -482,7 +635,8 @@ elif page == "Test Kit Builder":
                             'application_type': application_type,
                             'discount_percent': discount_percent,
                             'active': True,
-                            'analyte_ids': selected_analyte_ids
+                            'analyte_ids': selected_analyte_ids,
+                            'metadata': kit_metadata
                         }])
                         
                         st.session_state.test_kits = pd.concat([st.session_state.test_kits, new_kit], ignore_index=True)
@@ -995,7 +1149,7 @@ elif page == "Audit Trail":
 # Footer
 st.sidebar.markdown("---")
 st.sidebar.markdown("**KELP Price Management System**")
-st.sidebar.markdown("Version 1.0 ")
+st.sidebar.markdown("Version 2.0 - Cloud Ready")
 active_analytes_count = len(st.session_state.analytes[st.session_state.analytes['active']])
 active_kits_count = len(st.session_state.test_kits[st.session_state.test_kits['active']])
 st.sidebar.markdown(f"Database: {active_analytes_count} analytes, {active_kits_count} kits")
