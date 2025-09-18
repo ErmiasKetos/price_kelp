@@ -1276,7 +1276,7 @@ elif page == "Profitability Analysis":
     st.title("KELP Profitability Analysis")
     
     # Analysis tabs
-    prof_tab1, prof_tab2, prof_tab3, prof_tab4 = st.tabs([
+    prof_tab1, prof_tab3, prof_tab4 = st.tabs([
         "📊 Margin Analysis", 
         "🎯 Target vs Actual", 
         "📋 Category Performance"
