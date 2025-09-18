@@ -327,23 +327,37 @@ def calculate_markup(price: float, cost: float) -> float:
         return 0
     return ((price - cost) / price) * 100
 
+
 def get_cost_for_analyte(analyte_id: int) -> Dict:
-    """Get cost information for a specific analyte"""
-    analyte = st.session_state.analytes[st.session_state.analytes['id'] == analyte_id]
-    if analyte.empty:
-        return {"total_internal_cost": 0, "found": False}
-    
-    cost_id = analyte.iloc[0].get('cost_id', '')
-    if not cost_id:
-        return {"total_internal_cost": 0, "found": False}
-    
-    cost_record = st.session_state.cost_data[st.session_state.cost_data['cost_id'] == cost_id]
-    if cost_record.empty:
-        return {"total_internal_cost": 0, "found": False}
-    
-    cost_info = cost_record.iloc[0].to_dict()
-    cost_info['found'] = True
-    return cost_info
+    """Get cost information for a specific analyte with better error handling"""
+    try:
+        # Get analyte record
+        analyte = st.session_state.analytes[st.session_state.analytes['id'] == analyte_id]
+        if analyte.empty:
+            return {"total_internal_cost": 0.0, "found": False, "error": "Analyte not found"}
+        
+        # Get cost_id from analyte
+        cost_id = analyte.iloc[0].get('cost_id', '')
+        if not cost_id:
+            return {"total_internal_cost": 0.0, "found": False, "error": "No cost_id assigned"}
+        
+        # Find cost record
+        cost_record = st.session_state.cost_data[st.session_state.cost_data['cost_id'] == cost_id]
+        if cost_record.empty:
+            return {"total_internal_cost": 0.0, "found": False, "error": f"Cost record {cost_id} not found"}
+        
+        # Return full cost info
+        cost_info = cost_record.iloc[0].to_dict()
+        cost_info['found'] = True
+        
+        # Verify the total_internal_cost field exists
+        if 'total_internal_cost' not in cost_info:
+            return {"total_internal_cost": 0.0, "found": False, "error": "total_internal_cost field missing"}
+            
+        return cost_info
+        
+    except Exception as e:
+        return {"total_internal_cost": 0.0, "found": False, "error": f"Exception: {str(e)}"}
 
 def update_kit_safely(kit_idx: int, field_updates: Dict):
     """Safely update a test kit with proper handling of list fields"""
