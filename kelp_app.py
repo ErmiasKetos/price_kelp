@@ -536,13 +536,128 @@ elif page == "Test Kit Builder":
                         st.write("**Analytes in Kit:**")
                         st.dataframe(kit_analytes[['name', 'method', 'price']], use_container_width=True)
                 
-                # Delete option
-                if st.button(f"Delete {selected_kit}", type="secondary"):
-                    kit_idx = st.session_state.test_kits[st.session_state.test_kits['kit_name'] == selected_kit].index[0]
-                    st.session_state.test_kits.loc[kit_idx, 'active'] = False
-                    log_audit('test_kits', kit_data['id'], 'active', 'TRUE', 'FALSE', 'DELETE')
-                    st.success(f"Kit '{selected_kit}' deleted successfully!")
-                    st.rerun()
+                # Edit/Delete options
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.button(f"Edit {selected_kit}", key=f"edit_{selected_kit}"):
+                        st.session_state['editing_kit'] = selected_kit
+                        st.rerun()
+                
+                with col2:
+                    if st.button(f"Delete {selected_kit}", type="secondary", key=f"delete_{selected_kit}"):
+                        kit_idx = st.session_state.test_kits[st.session_state.test_kits['kit_name'] == selected_kit].index[0]
+                        st.session_state.test_kits.loc[kit_idx, 'active'] = False
+                        log_audit('test_kits', kit_data['id'], 'active', 'TRUE', 'FALSE', 'DELETE')
+                        st.success(f"Kit '{selected_kit}' deleted successfully!")
+                        st.rerun()
+                
+                # Edit Kit Form
+                if 'editing_kit' in st.session_state and st.session_state['editing_kit'] == selected_kit:
+                    st.subheader(f"Edit {selected_kit}")
+                    
+                    with st.form(f"edit_kit_form_{kit_data['id']}"):
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            edit_kit_name = st.text_input("Kit Name*", value=kit_data['kit_name'])
+                            edit_kit_category = st.selectbox("Category*", 
+                                                           ["Drinking Water", "Well Water", "Specialty", "Wastewater", "Environmental"],
+                                                           index=["Drinking Water", "Well Water", "Specialty", "Wastewater", "Environmental"].index(kit_data['category']))
+                            edit_kit_description = st.text_area("Description", value=kit_data['description'] if pd.notna(kit_data['description']) else "")
+                        
+                        with col2:
+                            edit_target_market = st.text_input("Target Market", value=kit_data['target_market'] if pd.notna(kit_data['target_market']) else "")
+                            edit_application_type = st.text_input("Application Type", value=kit_data['application_type'] if pd.notna(kit_data['application_type']) else "")
+                            edit_discount_percent = st.number_input("Bundle Discount (%)", min_value=0.0, max_value=50.0, 
+                                                                  value=float(kit_data['discount_percent']), step=0.1)
+                        
+                        st.subheader("Edit Analytes in Kit")
+                        
+                        # Get active analytes
+                        active_analytes = st.session_state.analytes[st.session_state.analytes['active']]
+                        
+                        # Group by category for better UX
+                        categories = active_analytes['category'].unique()
+                        selected_analyte_ids = []
+                        
+                        # Pre-select current analytes
+                        current_analyte_ids = kit_data['analyte_ids'] if isinstance(kit_data['analyte_ids'], list) else []
+                        
+                        for cat in sorted(categories):
+                            cat_analytes = active_analytes[active_analytes['category'] == cat]
+                            cat_selected = any(aid in current_analyte_ids for aid in cat_analytes['id'])
+                            
+                            with st.expander(f"{cat} ({len(cat_analytes)} tests)", expanded=cat_selected):
+                                for _, row in cat_analytes.iterrows():
+                                    default_checked = row['id'] in current_analyte_ids
+                                    if st.checkbox(f"{row['name']} - {row['method']} (${row['price']:.2f})", 
+                                                 key=f"edit_analyte_{row['id']}", value=default_checked):
+                                        selected_analyte_ids.append(row['id'])
+                        
+                        if selected_analyte_ids:
+                            pricing = calculate_kit_pricing(selected_analyte_ids, edit_discount_percent)
+                            
+                            st.write(f"**Updated Kit Summary:**")
+                            st.write(f"- Number of tests: {pricing['test_count']}")
+                            st.write(f"- Individual total: ${pricing['individual_total']:.2f}")
+                            st.write(f"- Kit price ({edit_discount_percent}% discount): ${pricing['kit_price']:.2f}")
+                            st.write(f"- Customer saves: ${pricing['savings']:.2f}")
+                        
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            save_changes = st.form_submit_button("Save Changes", type="primary")
+                        with col2:
+                            cancel_edit = st.form_submit_button("Cancel")
+                        
+                        if save_changes:
+                            if edit_kit_name and edit_kit_category and selected_analyte_ids:
+                                # Check for unique kit name (excluding current kit)
+                                existing_names = st.session_state.test_kits[
+                                    (st.session_state.test_kits['kit_name'] != kit_data['kit_name']) & 
+                                    st.session_state.test_kits['active']
+                                ]['kit_name'].values
+                                
+                                if edit_kit_name in existing_names:
+                                    st.error("Kit name must be unique. Please choose a different name.")
+                                else:
+                                    kit_idx = st.session_state.test_kits[st.session_state.test_kits['kit_name'] == selected_kit].index[0]
+                                    
+                                    # Log changes
+                                    if kit_data['kit_name'] != edit_kit_name:
+                                        log_audit('test_kits', kit_data['id'], 'kit_name', kit_data['kit_name'], edit_kit_name, 'UPDATE')
+                                    if kit_data['category'] != edit_kit_category:
+                                        log_audit('test_kits', kit_data['id'], 'category', kit_data['category'], edit_kit_category, 'UPDATE')
+                                    if kit_data['description'] != edit_kit_description:
+                                        log_audit('test_kits', kit_data['id'], 'description', str(kit_data['description']), edit_kit_description, 'UPDATE')
+                                    if kit_data['target_market'] != edit_target_market:
+                                        log_audit('test_kits', kit_data['id'], 'target_market', str(kit_data['target_market']), edit_target_market, 'UPDATE')
+                                    if kit_data['application_type'] != edit_application_type:
+                                        log_audit('test_kits', kit_data['id'], 'application_type', str(kit_data['application_type']), edit_application_type, 'UPDATE')
+                                    if kit_data['discount_percent'] != edit_discount_percent:
+                                        log_audit('test_kits', kit_data['id'], 'discount_percent', str(kit_data['discount_percent']), str(edit_discount_percent), 'UPDATE')
+                                    if set(current_analyte_ids) != set(selected_analyte_ids):
+                                        log_audit('test_kits', kit_data['id'], 'analyte_ids', str(current_analyte_ids), str(selected_analyte_ids), 'UPDATE')
+                                    
+                                    # Update the kit
+                                    st.session_state.test_kits.loc[kit_idx, 'kit_name'] = edit_kit_name
+                                    st.session_state.test_kits.loc[kit_idx, 'category'] = edit_kit_category
+                                    st.session_state.test_kits.loc[kit_idx, 'description'] = edit_kit_description
+                                    st.session_state.test_kits.loc[kit_idx, 'target_market'] = edit_target_market
+                                    st.session_state.test_kits.loc[kit_idx, 'application_type'] = edit_application_type
+                                    st.session_state.test_kits.loc[kit_idx, 'discount_percent'] = edit_discount_percent
+                                    st.session_state.test_kits.loc[kit_idx, 'analyte_ids'] = selected_analyte_ids
+                                    
+                                    # Clear editing state
+                                    del st.session_state['editing_kit']
+                                    
+                                    st.success(f"Test kit '{edit_kit_name}' updated successfully!")
+                                    st.rerun()
+                            else:
+                                st.error("Please fill in all required fields and select at least one analyte.")
+                        
+                        if cancel_edit:
+                            del st.session_state['editing_kit']
+                            st.rerun()
         else:
             st.info("No test kits found. Create your first kit in the 'Build New Kit' tab.")
 
