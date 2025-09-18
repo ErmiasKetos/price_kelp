@@ -908,51 +908,39 @@ elif page == "Analyte & Pricing":
                 st.dataframe(df_competitive.style.applymap(color_status, subset=['Status']), 
                            use_container_width=True)
 
-# Footer
-st.sidebar.markdown("---")
-st.sidebar.markdown("**KELP Price Management System**")
-st.sidebar.markdown("Version 3.0 - Cost & Competitive Analysis")
-active_analytes_count = len(st.session_state.analytes[st.session_state.analytes['active']])
-active_kits_count = len(st.session_state.test_kits[st.session_state.test_kits['active']])
-cost_records_count = len(st.session_state.cost_data)
-st.sidebar.markdown(f"Database: {active_analytes_count} analytes, {active_kits_count} kits, {cost_records_count} costs")
 
-# KELP Price Management System - Part 3 (Remaining Pages)
-# Continue from where Part 2 left off...
-
-# Profitability Analysis Page
-elif page == "Profitability Analysis":
-    st.title("KELP Profitability Analysis")
-    
-    # Analysis tabs
-    prof_tab1, prof_tab2, prof_tab3, prof_tab4 = st.tabs([
-        "📊 Margin Analysis", 
-        "📈 Profit Trends", 
-        "🎯 Target vs Actual", 
-        "📋 Category Performance"
-    ])
-    
-    with prof_tab1:
-        st.subheader("Profit Margin Analysis")
-        
-        # Filters
-        col1, col2 = st.columns([1, 1])
-        with col1:
-            selected_categories = st.multiselect(
-                "Filter by Category:",
-                options=st.session_state.analytes['category'].unique(),
-                default=st.session_state.analytes['category'].unique()[:3]
-            )
-        
-        with col2:
-            margin_threshold = st.slider(
-                "Highlight margins below:",
-                min_value=0.0,
-                max_value=200.0,
-                value=50.0,
-                step=5.0,
-                format="%.1f%%"
-            )
+            elif page == "Profitability Analysis":
+                st.title("KELP Profitability Analysis")
+                
+                # Analysis tabs
+                prof_tab1, prof_tab2, prof_tab3, prof_tab4 = st.tabs([
+                    "📊 Margin Analysis", 
+                    "📈 Profit Trends", 
+                    "🎯 Target vs Actual", 
+                    "📋 Category Performance"
+                ])
+                
+                with prof_tab1:
+                    st.subheader("Profit Margin Analysis")
+                    
+                    # Filters
+                    col1, col2 = st.columns([1, 1])
+                    with col1:
+                        selected_categories = st.multiselect(
+                            "Filter by Category:",
+                            options=st.session_state.analytes['category'].unique(),
+                            default=st.session_state.analytes['category'].unique()[:3]
+                        )
+                    
+                    with col2:
+                        margin_threshold = st.slider(
+                            "Highlight margins below:",
+                            min_value=0.0,
+                            max_value=200.0,
+                            value=50.0,
+                            step=5.0,
+                            format="%.1f%%"
+                        )
         
         # Calculate profitability data
         profitability_data = []
