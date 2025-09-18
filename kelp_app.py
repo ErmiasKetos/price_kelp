@@ -119,7 +119,7 @@ def calculate_kit_pricing(analyte_ids: List[int], discount_percent: float) -> Di
 init_session_state()
 
 # Sidebar navigation
-st.sidebar.title("🧪 Lab Management System")
+st.sidebar.title("KELP Price Management System")
 page = st.sidebar.selectbox(
     "Navigate to:",
     ["Dashboard", "Analyte Management", "Test Kit Builder", "Predefined Kits", "Data Export", "Audit Trail"]
@@ -127,7 +127,7 @@ page = st.sidebar.selectbox(
 
 # Dashboard Page
 if page == "Dashboard":
-    st.title("Water Testing Lab Management Dashboard")
+    st.title("KELP Price Management System Dashboard")
     
     # Key metrics
     col1, col2, col3, col4 = st.columns(4)
