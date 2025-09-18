@@ -1278,7 +1278,6 @@ elif page == "Profitability Analysis":
     # Analysis tabs
     prof_tab1, prof_tab2, prof_tab3, prof_tab4 = st.tabs([
         "📊 Margin Analysis", 
-        "📈 Profit Trends", 
         "🎯 Target vs Actual", 
         "📋 Category Performance"
     ])
