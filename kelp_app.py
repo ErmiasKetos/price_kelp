@@ -2410,7 +2410,7 @@ elif page == "Audit Trail":
 # Footer
 st.sidebar.markdown("---")
 st.sidebar.markdown("**KELP Price Management System**")
-st.sidebar.markdown("Version 3.0 - Complete System with 101 Tests")
+st.sidebar.markdown("Version 1.0 - Complete System with 101 Tests")
 
 # System statistics
 active_analytes_count = len(st.session_state.analytes[st.session_state.analytes['active']])
