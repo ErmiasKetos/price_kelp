@@ -9,7 +9,7 @@ from typing import Dict, List, Tuple
 # Configure Streamlit page
 st.set_page_config(
     page_title="KELP Price Management System",
-    page_icon="🧪",
+    page_icon=" ",
     layout="wide",
     initial_sidebar_state="expanded"
 )
