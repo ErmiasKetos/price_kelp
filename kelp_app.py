@@ -1377,45 +1377,7 @@ elif page == "Profitability Analysis":
         else:
             st.info("No profitability data available for selected categories. Please ensure cost data is available.")
     
-    with prof_tab2:
-        st.subheader("Profit Trends Analysis")
-        
-        # Simulated trend data (in real implementation, this would come from historical data)
-        trend_data = []
-        categories = st.session_state.analytes['category'].unique()[:5]
-        months = pd.date_range(start='2024-01-01', end='2024-12-01', freq='M')
-        
-        for month in months:
-            for category in categories:
-                # Simulate some trend data
-                base_margin = np.random.uniform(40, 120)
-                trend_data.append({
-                    'Month': month,
-                    'Category': category,
-                    'Average Margin %': base_margin + np.random.uniform(-10, 10),
-                    'Tests Performed': np.random.randint(10, 50)
-                })
-        
-        trend_df = pd.DataFrame(trend_data)
-        
-        # Trend visualization
-        fig = px.line(
-            trend_df, 
-            x='Month', 
-            y='Average Margin %', 
-            color='Category',
-            title="Profit Margin Trends by Category"
-        )
-        st.plotly_chart(fig, width='stretch')
-        
-        # Performance metrics over time
-        st.subheader("Monthly Performance Summary")
-        monthly_summary = trend_df.groupby('Month').agg({
-            'Average Margin %': 'mean',
-            'Tests Performed': 'sum'
-        }).round(2)
-        
-        st.line_chart(monthly_summary)
+
     
     with prof_tab3:
         st.subheader("Target vs Actual Performance")
