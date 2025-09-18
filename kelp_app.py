@@ -1202,6 +1202,7 @@ elif page == "Test Kit Builder":
                 
                 st.success(f"Test kit '{kit_name}' created successfully!")
                 st.rerun()
+
     
     with kit_tab2:
         st.subheader("Existing Test Kits")
@@ -1263,7 +1264,8 @@ elif page == "Test Kit Builder":
                                 available_categories = st.multiselect(
                                     "Filter by Test Category:",
                                     options=st.session_state.analytes['category'].unique(),
-                                    default=["Physical Parameters"]
+                                    default=["Physical Parameters"],
+                                    key=f"edit_categories_{kit['id']}"
                                 )
                                 
                                 if available_categories:
@@ -1272,15 +1274,27 @@ elif page == "Test Kit Builder":
                                         (st.session_state.analytes['active'])
                                     ]
                                     
+                                    # Only include current analytes that are in the filtered options
+                                    valid_defaults = [aid for aid in current_analytes if aid in filtered_analytes['id'].tolist()]
+                                    
                                     edit_selected_analytes = st.multiselect(
                                         "Select Tests for Kit:",
                                         options=filtered_analytes['id'].tolist(),
-                                        default=current_analytes,
+                                        default=valid_defaults,
                                         format_func=lambda x: f"{filtered_analytes[filtered_analytes['id'] == x]['name'].iloc[0]} (${filtered_analytes[filtered_analytes['id'] == x]['price'].iloc[0]:.2f})",
-                                        help="Modify the test selection. Current tests are pre-selected."
+                                        help="Modify the test selection. Current tests are pre-selected if they match the category filter.",
+                                        key=f"edit_analytes_{kit['id']}"
                                     )
+                                    
+                                    # Add button to include all current tests regardless of category filter
+                                    if len(valid_defaults) < len(current_analytes):
+                                        missing_count = len(current_analytes) - len(valid_defaults)
+                                        if st.checkbox(f"Include all {len(current_analytes)} current tests (including {missing_count} from other categories)", key=f"include_all_{kit['id']}"):
+                                            edit_selected_analytes = list(set(edit_selected_analytes + current_analytes))
                                 else:
+                                    # If no categories selected, use current analytes
                                     edit_selected_analytes = current_analytes
+                                    st.warning("Please select at least one category to modify test selection.")
                                 
                                 # Handle tiered pricing for edited selection
                                 edit_metal_counts = kit.get('metadata', {}).get('metal_counts', {}) if isinstance(kit.get('metadata'), dict) else {}
