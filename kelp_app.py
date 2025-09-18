@@ -9,7 +9,7 @@ from typing import Dict, List, Tuple
 # Configure Streamlit page
 st.set_page_config(
     page_title="KELP Price Management System",
-    page_icon="",
+    page_icon="🧪",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -155,6 +155,15 @@ def log_audit(table_name: str, record_id: int, field_name: str, old_value: str, 
     }])
     st.session_state.audit_trail = pd.concat([st.session_state.audit_trail, new_audit], ignore_index=True)
 
+def update_kit_safely(kit_idx: int, field_updates: Dict):
+    """Safely update a test kit with proper handling of list fields"""
+    for field, value in field_updates.items():
+        if field == 'analyte_ids':
+            # Handle list field specially
+            st.session_state.test_kits.at[kit_idx, field] = value.copy() if isinstance(value, list) else value
+        else:
+            st.session_state.test_kits.at[kit_idx, field] = value
+
 def calculate_kit_pricing(analyte_ids: List[int], discount_percent: float) -> Dict:
     """Calculate kit pricing based on selected analytes"""
     selected_analytes = st.session_state.analytes[st.session_state.analytes['id'].isin(analyte_ids) & st.session_state.analytes['active']]
@@ -173,10 +182,11 @@ def calculate_kit_pricing(analyte_ids: List[int], discount_percent: float) -> Di
 init_session_state()
 
 # Sidebar navigation
-st.sidebar.title("KELP Price Management System")
-page = st.sidebar.selectbox(
+st.sidebar.title("🧪 KELP Price Management")
+page = st.sidebar.radio(
     "Navigate to:",
-    ["Dashboard", "Analyte Management", "Test Kit Builder", "Predefined Kits", "Data Export", "Audit Trail"]
+    ["Dashboard", "Analyte Management", "Test Kit Builder", "Predefined Kits", "Data Export", "Audit Trail"],
+    index=0
 )
 
 # Dashboard Page
@@ -224,7 +234,7 @@ if page == "Dashboard":
 
 # Analyte Management Page
 elif page == "Analyte Management":
-    st.title("Analyte Management")
+    st.title("KELP Analyte & Price Management")
     
     tab1, tab2, tab3 = st.tabs(["View/Edit Analytes", "Add New Analyte", "Bulk Operations"])
     
@@ -401,7 +411,7 @@ elif page == "Analyte Management":
 
 # Test Kit Builder Page
 elif page == "Test Kit Builder":
-    st.title("Test Kit Builder")
+    st.title("KELP Test Kit Builder")
     
     tab1, tab2 = st.tabs(["Build New Kit", "Manage Existing Kits"])
     
@@ -638,14 +648,16 @@ elif page == "Test Kit Builder":
                                     if set(current_analyte_ids) != set(selected_analyte_ids):
                                         log_audit('test_kits', kit_data['id'], 'analyte_ids', str(current_analyte_ids), str(selected_analyte_ids), 'UPDATE')
                                     
-                                    # Update the kit
-                                    st.session_state.test_kits.loc[kit_idx, 'kit_name'] = edit_kit_name
-                                    st.session_state.test_kits.loc[kit_idx, 'category'] = edit_kit_category
-                                    st.session_state.test_kits.loc[kit_idx, 'description'] = edit_kit_description
-                                    st.session_state.test_kits.loc[kit_idx, 'target_market'] = edit_target_market
-                                    st.session_state.test_kits.loc[kit_idx, 'application_type'] = edit_application_type
-                                    st.session_state.test_kits.loc[kit_idx, 'discount_percent'] = edit_discount_percent
-                                    st.session_state.test_kits.loc[kit_idx, 'analyte_ids'] = selected_analyte_ids
+                                    # Update the kit using safe method
+                                    update_kit_safely(kit_idx, {
+                                        'kit_name': edit_kit_name,
+                                        'category': edit_kit_category,
+                                        'description': edit_kit_description,
+                                        'target_market': edit_target_market,
+                                        'application_type': edit_application_type,
+                                        'discount_percent': edit_discount_percent,
+                                        'analyte_ids': selected_analyte_ids
+                                    })
                                     
                                     # Clear editing state
                                     del st.session_state['editing_kit']
@@ -663,7 +675,7 @@ elif page == "Test Kit Builder":
 
 # Predefined Kits Page
 elif page == "Predefined Kits":
-    st.title("Predefined Test Kits")
+    st.title("KELP Professional Test Kits")
     st.write("Browse our professionally designed test kit collection")
     
     active_kits = st.session_state.test_kits[st.session_state.test_kits['active']]
@@ -717,7 +729,7 @@ elif page == "Predefined Kits":
 
 # Data Export Page
 elif page == "Data Export":
-    st.title("Data Export")
+    st.title("KELP Data Export Center")
     
     tab1, tab2, tab3 = st.tabs(["Analytes Export", "Test Kits Export", "Custom Export"])
     
@@ -893,7 +905,7 @@ elif page == "Data Export":
 
 # Audit Trail Page
 elif page == "Audit Trail":
-    st.title("Audit Trail")
+    st.title("KELP System Audit Trail")
     st.write("Track all changes made to analytes and test kits")
     
     if not st.session_state.audit_trail.empty:
@@ -982,6 +994,8 @@ elif page == "Audit Trail":
 
 # Footer
 st.sidebar.markdown("---")
+st.sidebar.markdown("**KELP Price Management System**")
+st.sidebar.markdown("Version 1.0 ")
 active_analytes_count = len(st.session_state.analytes[st.session_state.analytes['active']])
 active_kits_count = len(st.session_state.test_kits[st.session_state.test_kits['active']])
 st.sidebar.markdown(f"Database: {active_analytes_count} analytes, {active_kits_count} kits")
