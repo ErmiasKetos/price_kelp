@@ -7,6 +7,7 @@ import io
 from typing import Dict, List, Tuple
 import plotly.express as px
 import plotly.graph_objects as go
+from datetime import datetime, date, timedelta  # Add timedelta here
 
 # Configure Streamlit page
 st.set_page_config(
@@ -896,21 +897,132 @@ elif page == "Analyte & Pricing":
                     })
             
             if competitive_data:
-                df_competitive = pd.DataFrame(competitive_data)
+                            df_competitive = pd.DataFrame(competitive_data)
+                            
+                            # Color code the status
+                            def color_status(val):
+                                color = 'black'
+                                if val == 'High':
+                                    color = 'red'
+                                elif val == 'Low':
+                                    color = 'orange'
+                                elif val == 'Competitive':
+                                    color = 'green'
+                                return f'color: {color}'
+                            
+                            st.dataframe(df_competitive.style.applymap(color_status, subset=['Status']), 
+                                       width='stretch')
+            
+            # Test Kit Builder Page
+            elif page == "Test Kit Builder":
+                st.title("KELP Test Kit Builder")
                 
-                # Color code the status
-                def color_status(val):
-                    color = 'black'
-                    if val == 'High':
-                        color = 'red'
-                    elif val == 'Low':
-                        color = 'orange'
-                    elif val == 'Competitive':
-                        color = 'green'
-                    return f'color: {color}'
+                kit_tab1, kit_tab2 = st.tabs(["Build New Kit", "Manage Existing Kits"])
                 
-                st.dataframe(df_competitive.style.applymap(color_status, subset=['Status']), 
-                           width='stretch')
+                with kit_tab1:
+                    st.subheader("Create New Test Kit")
+                    
+                    with st.form("new_kit_form"):
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            kit_name = st.text_input("Kit Name*")
+                            kit_category = st.selectbox("Category", ["Drinking Water", "Wastewater", "Industrial", "Specialty"])
+                            kit_description = st.text_area("Description")
+                            
+                        with col2:
+                            target_market = st.selectbox("Target Market", ["Homeowners", "Community Systems", "Industrial", "General Public"])
+                            application_type = st.selectbox("Application", ["Basic Compliance", "Compliance Monitoring", "Initial Screening", "Waste Characterization"])
+                            discount_percent = st.slider("Kit Discount (%)", 0.0, 50.0, 20.0, 1.0)
+                        
+                        # Analyte selection
+                        st.subheader("Select Tests for Kit")
+                        
+                        # Filter analytes by category
+                        analyte_categories = st.multiselect(
+                            "Filter by Test Category:",
+                            options=st.session_state.analytes['category'].unique(),
+                            default=["Physical Parameters"]
+                        )
+                        
+                        filtered_analytes = st.session_state.analytes[
+                            (st.session_state.analytes['category'].isin(analyte_categories)) & 
+                            (st.session_state.analytes['active'])
+                        ]
+                        
+                        selected_analytes = st.multiselect(
+                            "Select Tests:",
+                            options=filtered_analytes['id'].tolist(),
+                            format_func=lambda x: filtered_analytes[filtered_analytes['id'] == x]['name'].iloc[0],
+                            default=[]
+                        )
+                        
+                        # Preview kit pricing
+                        if selected_analytes:
+                            pricing = calculate_kit_pricing(selected_analytes, discount_percent)
+                            
+                            col1, col2, col3 = st.columns(3)
+                            with col1:
+                                st.metric("Individual Total", f"${pricing['individual_total']:.2f}")
+                            with col2:
+                                st.metric("Kit Price", f"${pricing['kit_price']:.2f}")
+                            with col3:
+                                st.metric("Customer Savings", f"${pricing['savings']:.2f}")
+                        
+                        submitted = st.form_submit_button("Create Kit", type="primary")
+                        
+                        if submitted and kit_name and selected_analytes:
+                            new_kit = pd.DataFrame([{
+                                'id': st.session_state.next_kit_id,
+                                'kit_name': kit_name,
+                                'category': kit_category,
+                                'description': kit_description,
+                                'target_market': target_market,
+                                'application_type': application_type,
+                                'discount_percent': discount_percent,
+                                'active': True,
+                                'analyte_ids': selected_analytes,
+                                'metadata': {}
+                            }])
+                            
+                            st.session_state.test_kits = pd.concat([st.session_state.test_kits, new_kit], ignore_index=True)
+                            log_audit('test_kits', st.session_state.next_kit_id, 'all', '', 'New test kit created', 'INSERT')
+                            st.session_state.next_kit_id += 1
+                            
+                            st.success(f"Test kit '{kit_name}' created successfully!")
+                            st.rerun()
+                
+                with kit_tab2:
+                    st.subheader("Existing Test Kits")
+                    
+                    if not st.session_state.test_kits.empty:
+                        for _, kit in st.session_state.test_kits.iterrows():
+                            if kit['active']:
+                                with st.expander(f"📦 {kit['kit_name']} ({kit['category']})"):
+                                    
+                                    # Calculate kit pricing
+                                    pricing = calculate_kit_pricing(kit['analyte_ids'], kit['discount_percent'])
+                                    
+                                    col1, col2 = st.columns(2)
+                                    with col1:
+                                        st.write(f"**Description:** {kit['description']}")
+                                        st.write(f"**Target Market:** {kit['target_market']}")
+                                        st.write(f"**Discount:** {kit['discount_percent']:.1f}%")
+                                    
+                                    with col2:
+                                        st.metric("Kit Price", f"${pricing['kit_price']:.2f}")
+                                        st.metric("Test Count", pricing['test_count'])
+                                        st.metric("Customer Savings", f"${pricing['savings']:.2f}")
+                                    
+                                    # Show included tests
+                                    included_tests = st.session_state.analytes[
+                                        st.session_state.analytes['id'].isin(kit['analyte_ids'])
+                                    ]['name'].tolist()
+                                    st.write("**Included Tests:**")
+                                    st.write(", ".join(included_tests))
+            
+            # Profitability Analysis Page  
+        
 
 
             elif page == "Profitability Analysis":
