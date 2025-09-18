@@ -156,6 +156,8 @@ def init_session_state():
     
     if 'audit_trail' not in st.session_state:
         st.session_state.audit_trail = pd.DataFrame(columns=['timestamp', 'table_name', 'record_id', 'field_name', 'old_value', 'new_value', 'change_type', 'user_name'])
+    if 'audit_log' not in st.session_state:
+        st.session_state.audit_log = []
     
     if 'next_analyte_id' not in st.session_state:
         st.session_state.next_analyte_id = 102
@@ -175,6 +177,8 @@ def log_audit(table_name: str, record_id: int, field_name: str, old_value: str, 
         'change_type': change_type,
         'user_name': user_name
     }])
+    
+
     st.session_state.audit_trail = pd.concat([st.session_state.audit_trail, new_audit], ignore_index=True)
 
 def calculate_profit_margin(price: float, cost: float) -> float:
@@ -382,14 +386,14 @@ if page == "Dashboard":
             fig_margin = px.bar(df_category, x='Category', y='Avg Margin %', 
                               title="Average Margin % by Category",
                               color='Avg Margin %', color_continuous_scale='RdYlGn')
-            st.plotly_chart(fig_margin, use_container_width=True)
+            st.plotly_chart(fig_margin, width='stretch')
         
         with col2:
             fig_revenue = px.pie(df_category, values='Total Revenue', names='Category',
                                title="Revenue Distribution by Category")
-            st.plotly_chart(fig_revenue, use_container_width=True)
+            st.plotly_chart(fig_revenue, width='stretch')
         
-        st.dataframe(df_category, use_container_width=True)
+        st.dataframe(df_category, width='stretch')
 
 # Cost Management Page
 elif page == "Cost Management":
@@ -434,7 +438,7 @@ elif page == "Cost Management":
             fig_cost = px.bar(x=list(cost_components.keys()), y=list(cost_components.values()),
                             title="Average Cost Components", labels={'x': 'Component', 'y': 'Average Cost ($)'})
             fig_cost.update_traces(marker_color=['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FECA57', '#FF9FF3', '#54A0FF'])
-            st.plotly_chart(fig_cost, use_container_width=True)
+            st.plotly_chart(fig_cost, width='stretch')
             
             # Detailed cost table with search and filter
             st.subheader("Detailed Cost Records")
@@ -452,7 +456,7 @@ elif page == "Cost Management":
             if cost_search:
                 filtered_costs = filtered_costs[filtered_costs['test_name'].str.contains(cost_search, case=False, na=False)]
             
-            st.dataframe(filtered_costs, use_container_width=True)
+            st.dataframe(filtered_costs, width='stretch')
         else:
             st.info("No cost data available. Please import cost data or add records manually.")
     
@@ -721,7 +725,7 @@ elif page == "Analyte & Pricing":
                 })
             
             df_display = pd.DataFrame(display_data)
-            st.dataframe(df_display, use_container_width=True)
+            st.dataframe(df_display, width='stretch')
             
             # Quick edit section
             st.subheader("Quick Price Edit")
@@ -862,7 +866,7 @@ elif page == "Analyte & Pricing":
                 
                 if suggestions:
                     df_suggestions = pd.DataFrame(suggestions)
-                    st.dataframe(df_suggestions, use_container_width=True)
+                    st.dataframe(df_suggestions, width='stretch')
                 else:
                     st.info("No cost data available for price suggestions.")
         
@@ -906,7 +910,7 @@ elif page == "Analyte & Pricing":
                     return f'color: {color}'
                 
                 st.dataframe(df_competitive.style.applymap(color_status, subset=['Status']), 
-                           use_container_width=True)
+                           width='stretch')
 
 
             elif page == "Profitability Analysis":
@@ -996,7 +1000,7 @@ elif page == "Analyte & Pricing":
                 return ''
             
             styled_df = profit_df.style.applymap(color_margins, subset=['Margin %'])
-            st.dataframe(styled_df, use_container_width=True)
+            st.dataframe(styled_df, width='stretch')
             
             # Margin distribution chart
             st.subheader("Margin Distribution")
@@ -1009,7 +1013,7 @@ elif page == "Analyte & Pricing":
             )
             fig.add_vline(x=margin_threshold, line_dash="dash", line_color="red", 
                          annotation_text="Threshold")
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
             
         else:
             st.info("No profitability data available for selected categories. Please ensure cost data is available.")
@@ -1043,7 +1047,7 @@ elif page == "Analyte & Pricing":
             color='Category',
             title="Profit Margin Trends by Category"
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
         
         # Performance metrics over time
         st.subheader("Monthly Performance Summary")
@@ -1124,7 +1128,7 @@ elif page == "Analyte & Pricing":
                 })
             
             gap_df = pd.DataFrame(gap_data)
-            st.dataframe(gap_df, use_container_width=True)
+            st.dataframe(gap_df, width='stretch')
     
     with prof_tab4:
         st.subheader("Category Performance Analysis")
@@ -1141,7 +1145,7 @@ elif page == "Analyte & Pricing":
             category_performance.rename(columns={'Test ID': 'Test Count'}, inplace=True)
             
             st.subheader("Category Performance Summary")
-            st.dataframe(category_performance, use_container_width=True)
+            st.dataframe(category_performance, width='stretch')
             
             # Category comparison charts
             col1, col2 = st.columns(2)
@@ -1152,7 +1156,7 @@ elif page == "Analyte & Pricing":
                     y=category_performance['Margin %'],
                     title="Average Margin by Category"
                 )
-                st.plotly_chart(fig_margin, use_container_width=True)
+                st.plotly_chart(fig_margin, width='stretch')
             
             with col2:
                 fig_profit = px.bar(
@@ -1160,7 +1164,7 @@ elif page == "Analyte & Pricing":
                     y=category_performance['Profit'],
                     title="Average Profit by Category"
                 )
-                st.plotly_chart(fig_profit, use_container_width=True)
+                st.plotly_chart(fig_profit, width='stretch')
             
             # Category recommendations
             st.subheader("Category Recommendations")
@@ -1268,7 +1272,7 @@ elif page == "Competitive Analysis":
                     marker_color=['#FF6B6B' if lab == 'KELP' else '#4ECDC4' for lab in comp_df['Laboratory']]
                 )
                 
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
                 
                 # Competitive position analysis
                 kelp_price = comp_df[comp_df['Laboratory'] == 'KELP']['Price'].iloc[0] if 'KELP' in comp_df['Laboratory'].values else None
@@ -1349,7 +1353,7 @@ elif page == "Competitive Analysis":
                 names=position_summary.index,
                 title="Portfolio Price Positioning"
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
             
             # Detailed positioning table
             st.subheader("Detailed Position Analysis")
@@ -1364,7 +1368,7 @@ elif page == "Competitive Analysis":
                     return 'background-color: #fff3e0'  # Light orange
             
             styled_pos_df = pos_df.style.applymap(color_position, subset=['Position'])
-            st.dataframe(styled_pos_df, use_container_width=True)
+            st.dataframe(styled_pos_df, width='stretch')
     
     with comp_tab3:
         st.subheader("Competitive Strategy Recommendations")
@@ -1432,7 +1436,7 @@ elif page == "Competitive Analysis":
                 return color_map.get(val, '')
             
             styled_strat_df = filtered_strat_df.style.applymap(color_priority, subset=['Priority'])
-            st.dataframe(styled_strat_df, use_container_width=True)
+            st.dataframe(styled_strat_df, width='stretch')
             
             # Action items summary
             st.subheader("📋 Priority Actions")
@@ -1606,7 +1610,7 @@ elif page == "Data Export":
         
         # Preview data
         st.subheader("Preview Export Data")
-        st.dataframe(filtered_data.head(10), use_container_width=True)
+        st.dataframe(filtered_data.head(10), width='stretch')
         st.write(f"Total records: {len(filtered_data)}")
         
         # Export options
@@ -1752,7 +1756,7 @@ elif page == "Audit Trail":
                 return color_map.get(val, '')
             
             styled_entries = display_entries.style.applymap(color_action, subset=['action'])
-            st.dataframe(styled_entries, use_container_width=True)
+            st.dataframe(styled_entries, width='stretch')
             
         else:
             st.info("No audit entries found. Changes will appear here as you use the system.")
@@ -1846,7 +1850,7 @@ elif page == "Audit Trail":
                     display_df['timestamp'] = pd.to_datetime(display_df['timestamp']).dt.strftime('%Y-%m-%d %H:%M:%S')
                     display_df = display_df.sort_values('timestamp', ascending=False)
                     
-                    st.dataframe(display_df, use_container_width=True)
+                    st.dataframe(display_df, width='stretch')
                     
                     # Export search results
                     csv_data = display_df.to_csv(index=False)
@@ -1880,7 +1884,7 @@ elif page == "Audit Trail":
                     title="Daily System Activity",
                     labels={'x': 'Date', 'y': 'Number of Changes'}
                 )
-                st.plotly_chart(fig_daily, use_container_width=True)
+                st.plotly_chart(fig_daily, width='stretch')
             
             # Activity by action type
             col1, col2 = st.columns(2)
@@ -1892,7 +1896,7 @@ elif page == "Audit Trail":
                     names=action_counts.index,
                     title="Activity by Action Type"
                 )
-                st.plotly_chart(fig_actions, use_container_width=True)
+                st.plotly_chart(fig_actions, width='stretch')
             
             with col2:
                 entity_counts = audit_df['entity_type'].value_counts()
@@ -1901,7 +1905,7 @@ elif page == "Audit Trail":
                     y=entity_counts.values,
                     title="Activity by Entity Type"
                 )
-                st.plotly_chart(fig_entities, use_container_width=True)
+                st.plotly_chart(fig_entities, width='stretch')
             
             # Activity timeline
             st.subheader("Recent Activity Timeline")
@@ -1968,5 +1972,5 @@ st.sidebar.markdown("Version 3.0 - Complete System")
 active_analytes_count = len(st.session_state.analytes[st.session_state.analytes['active']])
 active_kits_count = len(st.session_state.test_kits[st.session_state.test_kits['active']])
 cost_records_count = len(st.session_state.cost_data)
-audit_entries_count = len(st.session_state.audit_log)
+audit_entries_count = len(st.session_state.audit_log) if 'audit_log' in st.session_state else 0
 st.sidebar.markdown(f"Database: {active_analytes_count} analytes, {active_kits_count} kits, {cost_records_count} costs, {audit_entries_count} audit entries")
