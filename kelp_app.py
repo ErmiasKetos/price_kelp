@@ -616,7 +616,8 @@ elif page == "Cost Management":
                             # Parse costs (remove $ and , from strings)
                             def parse_cost(value):
                                 if isinstance(value, str):
-                                    return float(value.replace(', '').replace(',', ''))
+                        
+                                    return float(value.replace('$', '').replace(',', ''))
                                 return float(value) if pd.notna(value) else 0.0
                             
                             # Parse QC percentage
