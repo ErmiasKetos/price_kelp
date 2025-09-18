@@ -2433,8 +2433,5 @@ if not st.session_state.analytes.empty:
 
 # Version info
 st.sidebar.markdown("---")
-st.sidebar.markdown("💻 **System Info:**")
-st.sidebar.markdown("• Built with Streamlit")
-st.sidebar.markdown("• Plotly visualizations") 
-st.sidebar.markdown("• Pandas data processing")
+
 st.sidebar.markdown(f"• Last updated: {datetime.now().strftime('%Y-%m-%d')}")
