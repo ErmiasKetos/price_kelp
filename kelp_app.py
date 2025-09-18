@@ -9,7 +9,7 @@ from typing import Dict, List, Tuple
 # Configure Streamlit page
 st.set_page_config(
     page_title="KELP Price Management System",
-    page_icon=" ",
+    page_icon="",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -19,7 +19,7 @@ def init_session_state():
     """Initialize session state with sample data if not exists"""
     
     if 'analytes' not in st.session_state:
-        # Sample analyte data
+        # Complete analyte data - all 101 tests from your spreadsheet
         st.session_state.analytes = pd.DataFrame([
             {"id": 1, "name": "Hydrogen Ion (pH)", "method": "EPA 150.1", "technology": "Electrometric", "category": "Physical Parameters", "subcategory": "Basic Physical", "price": 40.00, "sku": "LAB-102.015-001-EPA150.1", "active": True},
             {"id": 2, "name": "Turbidity", "method": "EPA 180.1", "technology": "Nephelometric", "category": "Physical Parameters", "subcategory": "Optical Measurements", "price": 25.00, "sku": "LAB-102.02-001-EPA180.1", "active": True},
@@ -34,40 +34,94 @@ def init_session_state():
             {"id": 11, "name": "Phosphate, Ortho", "method": "EPA 300.1", "technology": "Ion Chromatography", "category": "Inorganics", "subcategory": "Nutrients", "price": 95.00, "sku": "LAB-102.04-009-EPA300.1", "active": True},
             {"id": 12, "name": "Sulfate", "method": "EPA 300.1", "technology": "Ion Chromatography", "category": "Inorganics", "subcategory": "Nutrients", "price": 85.00, "sku": "LAB-102.04-010-EPA300.1", "active": True},
             {"id": 13, "name": "Perchlorate", "method": "EPA 314.2", "technology": "Ion Chromatography", "category": "Inorganics", "subcategory": "Toxic Inorganics", "price": 165.00, "sku": "LAB-102.05-001-EPA314.2", "active": True},
-            {"id": 14, "name": "Aluminum", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Trace Metals", "price": 75.00, "sku": "LAB-103.01-001-EPA200.8", "active": True},
-            {"id": 15, "name": "Antimony", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Trace Metals", "price": 75.00, "sku": "LAB-103.01-002-EPA200.8", "active": True},
-            {"id": 16, "name": "Arsenic", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Trace Metals", "price": 75.00, "sku": "LAB-103.01-003-EPA200.8", "active": True},
-            {"id": 17, "name": "Barium", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Trace Metals", "price": 75.00, "sku": "LAB-103.01-004-EPA200.8", "active": True},
-            {"id": 18, "name": "Beryllium", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Trace Metals", "price": 75.00, "sku": "LAB-103.01-005-EPA200.8", "active": True},
-            {"id": 19, "name": "Cadmium", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Trace Metals", "price": 75.00, "sku": "LAB-103.01-006-EPA200.8", "active": True},
-            {"id": 20, "name": "Chromium", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Trace Metals", "price": 75.00, "sku": "LAB-103.01-007-EPA200.8", "active": True},
-            {"id": 21, "name": "Copper", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Trace Metals", "price": 75.00, "sku": "LAB-103.01-008-EPA200.8", "active": True},
-            {"id": 22, "name": "Lead", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Trace Metals", "price": 75.00, "sku": "LAB-103.01-009-EPA200.8", "active": True},
-            {"id": 23, "name": "Manganese", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Trace Metals", "price": 75.00, "sku": "LAB-103.01-010-EPA200.8", "active": True},
-            {"id": 24, "name": "Mercury", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Trace Metals", "price": 85.00, "sku": "LAB-103.01-011-EPA200.8", "active": True},
-            {"id": 25, "name": "Nickel", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Trace Metals", "price": 75.00, "sku": "LAB-103.01-012-EPA200.8", "active": True},
-            {"id": 26, "name": "Selenium", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Trace Metals", "price": 75.00, "sku": "LAB-103.01-013-EPA200.8", "active": True},
-            {"id": 27, "name": "Silver", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Trace Metals", "price": 75.00, "sku": "LAB-103.01-014-EPA200.8", "active": True},
-            {"id": 28, "name": "Thallium", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Trace Metals", "price": 75.00, "sku": "LAB-103.01-015-EPA200.8", "active": True},
-            {"id": 29, "name": "Zinc", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Trace Metals", "price": 75.00, "sku": "LAB-103.01-016-EPA200.8", "active": True},
-            {"id": 30, "name": "Boron", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Trace Metals", "price": 75.00, "sku": "LAB-103.01-017-EPA200.8", "active": True},
-            {"id": 31, "name": "Vanadium", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Trace Metals", "price": 75.00, "sku": "LAB-103.01-018-EPA200.8", "active": True},
-            {"id": 32, "name": "Strontium", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Trace Metals", "price": 75.00, "sku": "LAB-103.01-019-EPA200.8", "active": True},
-            {"id": 33, "name": "Chromium (VI)", "method": "EPA 218.7", "technology": "Ion Chromatography", "category": "Inorganics", "subcategory": "Specialized Species", "price": 145.00, "sku": "LAB-102.06-001-EPA218.7", "active": True},
-            {"id": 34, "name": "Total Organic Carbon (TOC)", "method": "EPA 415.3", "technology": "Spectrophotometric", "category": "Organics", "subcategory": "Organic Carbon", "price": 95.00, "sku": "LAB-104.01-001-EPA415.3", "active": True},
-            {"id": 35, "name": "Dissolved Organic Carbon (DOC)", "method": "EPA 415.3", "technology": "Spectrophotometric", "category": "Organics", "subcategory": "Organic Carbon", "price": 95.00, "sku": "LAB-104.01-002-EPA415.3", "active": True},
-            {"id": 36, "name": "PFAS 25-Compound Panel", "method": "EPA 533", "technology": "HPLC-MS", "category": "Organics", "subcategory": "PFAS", "price": 850.00, "sku": "LAB-104.02-001-EPA533", "active": True},
-            {"id": 37, "name": "PFAS 18-Compound Panel", "method": "EPA 537.1", "technology": "HPLC-MS", "category": "Organics", "subcategory": "PFAS", "price": 650.00, "sku": "LAB-104.02-002-EPA537.1", "active": True},
-            {"id": 38, "name": "PFAS 3-Compound Panel", "method": "EPA 537.1", "technology": "HPLC-MS", "category": "Organics", "subcategory": "PFAS", "price": 275.00, "sku": "LAB-104.02-003-EPA537.1", "active": True},
-            {"id": 39, "name": "Alkalinity", "method": "SM 2320 B", "technology": "Titrimetric", "category": "Inorganics", "subcategory": "Classical Parameters", "price": 55.00, "sku": "LAB-102.07-001-SM2320B", "active": True},
-            {"id": 40, "name": "Hardness", "method": "SM 2340 C", "technology": "Titrimetric", "category": "Inorganics", "subcategory": "Classical Parameters", "price": 55.00, "sku": "LAB-102.07-002-SM2340C", "active": True},
-            {"id": 41, "name": "Conductivity", "method": "SM 2510 B", "technology": "Conductivity Meter", "category": "Physical Parameters", "subcategory": "Electrochemical", "price": 35.00, "sku": "LAB-102.08-001-SM2510B", "active": True},
-            {"id": 42, "name": "Total Dissolved Solids", "method": "SM 2540 C", "technology": "Gravimetric", "category": "Physical Parameters", "subcategory": "Gravimetric Analysis", "price": 45.00, "sku": "LAB-102.09-001-SM2540C", "active": True},
-            {"id": 43, "name": "Total Suspended Solids", "method": "SM 2540 D", "technology": "Gravimetric", "category": "Physical Parameters", "subcategory": "Gravimetric Analysis", "price": 45.00, "sku": "LAB-102.09-002-SM2540D", "active": True},
-            {"id": 44, "name": "BOD (5-day)", "method": "SM 5210 B", "technology": "DO Depletion", "category": "Physical Parameters", "subcategory": "Oxygen Demand", "price": 125.00, "sku": "LAB-102.10-001-SM5210B", "active": True},
-            {"id": 45, "name": "Chemical Oxygen Demand", "method": "EPA 410.4", "technology": "Spectrophotometric", "category": "Physical Parameters", "subcategory": "Oxygen Demand", "price": 85.00, "sku": "LAB-102.10-002-EPA410.4", "active": True},
-            {"id": 46, "name": "Ammonia (as N)", "method": "SM 4500-NH3", "technology": "Electrode", "category": "Inorganics", "subcategory": "Nutrients", "price": 65.00, "sku": "LAB-102.11-001-SM4500NH3", "active": True},
-            {"id": 47, "name": "Total Phosphorus", "method": "SM 4500-P", "technology": "Colorimetric", "category": "Inorganics", "subcategory": "Nutrients", "price": 75.00, "sku": "LAB-102.11-002-SM4500P", "active": True}
+            {"id": 14, "name": "Nitrate (Calculation)", "method": "EPA 353.2", "technology": "Automated Colorimetric", "category": "Inorganics", "subcategory": "Nutrients", "price": 75.00, "sku": "LAB-102.12-001-EPA353.2", "active": True},
+            {"id": 15, "name": "Nitrite", "method": "EPA 353.2", "technology": "Automated Colorimetric", "category": "Inorganics", "subcategory": "Nutrients", "price": 75.00, "sku": "LAB-102.12-002-EPA353.2", "active": True},
+            {"id": 16, "name": "Phosphate, Ortho", "method": "EPA 365.1", "technology": "Semi Auto Colorimetric", "category": "Inorganics", "subcategory": "Nutrients", "price": 80.00, "sku": "LAB-102.13-001-EPA365.1", "active": True},
+            {"id": 17, "name": "Sulfate", "method": "EPA 375.2", "technology": "Automated Colorimetric", "category": "Inorganics", "subcategory": "Nutrients", "price": 80.00, "sku": "LAB-102.14-001-EPA375.2", "active": True},
+            {"id": 18, "name": "Dissolved Organic Carbon DOC", "method": "EPA 415.3 Rev. 1.1", "technology": "Spectrophotometric", "category": "Organics", "subcategory": "Organic Carbon", "price": 95.00, "sku": "LAB-104.01-001-EPA415.3", "active": True},
+            {"id": 19, "name": "Total Organic Carbon TOC", "method": "EPA 415.3 Rev. 1.2", "technology": "Spectrophotometric", "category": "Organics", "subcategory": "Organic Carbon", "price": 95.00, "sku": "LAB-104.01-002-EPA415.3", "active": True},
+            {"id": 20, "name": "Alkalinity", "method": "SM 2320 B-1997", "technology": "Titrimetric", "category": "Inorganics", "subcategory": "Classical Parameters", "price": 55.00, "sku": "LAB-102.07-001-SM2320B", "active": True},
+            {"id": 21, "name": "Hardness", "method": "SM 2340 C-1997", "technology": "Titrimetric", "category": "Inorganics", "subcategory": "Classical Parameters", "price": 55.00, "sku": "LAB-102.07-002-SM2340C", "active": True},
+            {"id": 22, "name": "Conductivity", "method": "SM 2510 B-1997", "technology": "Conductivity Meter", "category": "Physical Parameters", "subcategory": "Electrochemical", "price": 35.00, "sku": "LAB-102.08-001-SM2510B", "active": True},
+            {"id": 23, "name": "Residue, Filterable TDS", "method": "SM 2540 C-1997", "technology": "Gravimetric", "category": "Physical Parameters", "subcategory": "Gravimetric Analysis", "price": 45.00, "sku": "LAB-102.09-001-SM2540C", "active": True},
+            {"id": 24, "name": "Calcium", "method": "SM 3500-Ca B-1997", "technology": "Titrimetric", "category": "Metals", "subcategory": "Major Cations", "price": 60.00, "sku": "LAB-103.02-001-SM3500Ca", "active": True},
+            {"id": 25, "name": "Magnesium", "method": "SM 3500-Mg B-1997", "technology": "Calculation", "category": "Metals", "subcategory": "Major Cations", "price": 55.00, "sku": "LAB-103.02-002-SM3500Mg", "active": True},
+            {"id": 26, "name": "Chlorine, Combined", "method": "SM 4500-Cl D-2000", "technology": "Titrimetric", "category": "Inorganics", "subcategory": "Disinfection Parameters", "price": 70.00, "sku": "LAB-102.15-001-SM4500Cl", "active": True},
+            {"id": 27, "name": "Chlorine, Free Available", "method": "SM 4500-Cl D-2000", "technology": "Titrimetric", "category": "Inorganics", "subcategory": "Disinfection Parameters", "price": 70.00, "sku": "LAB-102.15-002-SM4500Cl", "active": True},
+            {"id": 28, "name": "Chlorine, Total Residual", "method": "SM 4500-Cl D-2000", "technology": "Titrimetric", "category": "Inorganics", "subcategory": "Disinfection Parameters", "price": 70.00, "sku": "LAB-102.15-003-SM4500Cl", "active": True},
+            {"id": 29, "name": "Chlorine, Free Available", "method": "SM 4500-Cl G-2000", "technology": "Spectrophotometric", "category": "Inorganics", "subcategory": "Disinfection Parameters", "price": 75.00, "sku": "LAB-102.15-004-SM4500Cl", "active": True},
+            {"id": 30, "name": "Chlorine, Total Residual", "method": "SM 4500-Cl G-2000", "technology": "Spectrophotometric", "category": "Inorganics", "subcategory": "Disinfection Parameters", "price": 75.00, "sku": "LAB-102.15-005-SM4500Cl", "active": True},
+            {"id": 31, "name": "Surfactants", "method": "SM 5540C-2000", "technology": "Colorimetric", "category": "Organics", "subcategory": "Classical Organics", "price": 95.00, "sku": "LAB-104.03-001-SM5540C", "active": True},
+            {"id": 32, "name": "Aluminum", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Trace Metals", "price": 75.00, "sku": "LAB-103.01-001-EPA200.8", "active": True},
+            {"id": 33, "name": "Antimony", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Trace Metals", "price": 75.00, "sku": "LAB-103.01-002-EPA200.8", "active": True},
+            {"id": 34, "name": "Arsenic", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Trace Metals", "price": 75.00, "sku": "LAB-103.01-003-EPA200.8", "active": True},
+            {"id": 35, "name": "Barium", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Trace Metals", "price": 75.00, "sku": "LAB-103.01-004-EPA200.8", "active": True},
+            {"id": 36, "name": "Beryllium", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Trace Metals", "price": 75.00, "sku": "LAB-103.01-005-EPA200.8", "active": True},
+            {"id": 37, "name": "Cadmium", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Trace Metals", "price": 75.00, "sku": "LAB-103.01-006-EPA200.8", "active": True},
+            {"id": 38, "name": "Chromium", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Trace Metals", "price": 75.00, "sku": "LAB-103.01-007-EPA200.8", "active": True},
+            {"id": 39, "name": "Copper", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Trace Metals", "price": 75.00, "sku": "LAB-103.01-008-EPA200.8", "active": True},
+            {"id": 40, "name": "Lead", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Trace Metals", "price": 75.00, "sku": "LAB-103.01-009-EPA200.8", "active": True},
+            {"id": 41, "name": "Manganese", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Trace Metals", "price": 75.00, "sku": "LAB-103.01-010-EPA200.8", "active": True},
+            {"id": 42, "name": "Mercury", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Trace Metals", "price": 85.00, "sku": "LAB-103.01-011-EPA200.8", "active": True},
+            {"id": 43, "name": "Nickel", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Trace Metals", "price": 75.00, "sku": "LAB-103.01-012-EPA200.8", "active": True},
+            {"id": 44, "name": "Selenium", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Trace Metals", "price": 75.00, "sku": "LAB-103.01-013-EPA200.8", "active": True},
+            {"id": 45, "name": "Silver", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Trace Metals", "price": 75.00, "sku": "LAB-103.01-014-EPA200.8", "active": True},
+            {"id": 46, "name": "Thallium", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Trace Metals", "price": 75.00, "sku": "LAB-103.01-015-EPA200.8", "active": True},
+            {"id": 47, "name": "Zinc", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Trace Metals", "price": 75.00, "sku": "LAB-103.01-016-EPA200.8", "active": True},
+            {"id": 48, "name": "Boron", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Trace Metals", "price": 75.00, "sku": "LAB-103.01-017-EPA200.8", "active": True},
+            {"id": 49, "name": "Vanadium", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Trace Metals", "price": 75.00, "sku": "LAB-103.01-018-EPA200.8", "active": True},
+            {"id": 50, "name": "Strontium", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Trace Metals", "price": 75.00, "sku": "LAB-103.01-019-EPA200.8", "active": True},
+            {"id": 51, "name": "Chromium (VI)", "method": "EPA 218.7", "technology": "Ion Chromatography", "category": "Inorganics", "subcategory": "Specialized Species", "price": 145.00, "sku": "LAB-102.06-001-EPA218.7", "active": True},
+            {"id": 52, "name": "Alkalinity", "method": "EPA 310.2", "technology": "Automated Colorimetric", "category": "Inorganics", "subcategory": "Classical Parameters", "price": 60.00, "sku": "LAB-102.16-001-EPA310.2", "active": True},
+            {"id": 53, "name": "Chemical Oxygen Demand", "method": "EPA 410.3", "technology": "Titrimetric", "category": "Physical Parameters", "subcategory": "Oxygen Demand", "price": 85.00, "sku": "LAB-102.10-001-EPA410.3", "active": True},
+            {"id": 54, "name": "Chemical Oxygen Demand", "method": "EPA 410.4", "technology": "Spectrophotometric", "category": "Physical Parameters", "subcategory": "Oxygen Demand", "price": 85.00, "sku": "LAB-102.10-002-EPA410.4", "active": True},
+            {"id": 55, "name": "Phenols, Total", "method": "EPA 420.1", "technology": "Manual Colorimetric", "category": "Organics", "subcategory": "Classical Organics", "price": 115.00, "sku": "LAB-104.03-002-EPA420.1", "active": True},
+            {"id": 56, "name": "Alkalinity", "method": "SM 2320 B-2011", "technology": "Titrimetric", "category": "Inorganics", "subcategory": "Classical Parameters", "price": 55.00, "sku": "LAB-102.17-001-SM2320B", "active": True},
+            {"id": 57, "name": "Hardness (Calculation)", "method": "SM 2340 B-2011", "technology": "AA, ICP or ICP-MS", "category": "Inorganics", "subcategory": "Classical Parameters", "price": 50.00, "sku": "LAB-102.17-002-SM2340B", "active": True},
+            {"id": 58, "name": "Hardness", "method": "SM 2340 C-2011", "technology": "Titrimetric", "category": "Inorganics", "subcategory": "Classical Parameters", "price": 55.00, "sku": "LAB-102.17-003-SM2340C", "active": True},
+            {"id": 59, "name": "Specific Conductance", "method": "SM 2510 B-2011", "technology": "Conductivity Meter", "category": "Physical Parameters", "subcategory": "Electrochemical", "price": 35.00, "sku": "LAB-102.18-001-SM2510B", "active": True},
+            {"id": 60, "name": "Total Solids Dried at 103 - 105 deg C", "method": "SM 2540 B-2015", "technology": "Gravimetric", "category": "Physical Parameters", "subcategory": "Gravimetric Analysis", "price": 45.00, "sku": "LAB-102.19-001-SM2540B", "active": True},
+            {"id": 61, "name": "Total Dissolved Solids Dried at 180 deg C", "method": "SM 2540 C-2015", "technology": "Gravimetric", "category": "Physical Parameters", "subcategory": "Gravimetric Analysis", "price": 45.00, "sku": "LAB-102.19-002-SM2540C", "active": True},
+            {"id": 62, "name": "Total Suspended Solids Dried at 103 - 105 deg C", "method": "SM 2540 D-2015", "technology": "Gravimetric", "category": "Physical Parameters", "subcategory": "Gravimetric Analysis", "price": 45.00, "sku": "LAB-102.19-003-SM2540D", "active": True},
+            {"id": 63, "name": "Volatile Dissolved Solids Ignited at 550 deg C", "method": "SM 2540 E-2015", "technology": "Gravimetric", "category": "Physical Parameters", "subcategory": "Gravimetric Analysis", "price": 50.00, "sku": "LAB-102.19-004-SM2540E", "active": True},
+            {"id": 64, "name": "Fixed Dissolved Solids Ignited at 550 deg C", "method": "SM 2540 E-2015", "technology": "Gravimetric", "category": "Physical Parameters", "subcategory": "Gravimetric Analysis", "price": 50.00, "sku": "LAB-102.19-005-SM2540E", "active": True},
+            {"id": 65, "name": "Residue, Settleable", "method": "SM 2540 F-2015", "technology": "Volumetric", "category": "Physical Parameters", "subcategory": "Gravimetric Analysis", "price": 40.00, "sku": "LAB-102.19-006-SM2540F", "active": True},
+            {"id": 66, "name": "Temperature", "method": "SM 2550 B-2010", "technology": "Thermometric", "category": "Physical Parameters", "subcategory": "Basic Physical", "price": 30.00, "sku": "LAB-102.20-001-SM2550B", "active": True},
+            {"id": 67, "name": "Calcium", "method": "SM 3125 B-2011", "technology": "ICP-MS", "category": "Metals", "subcategory": "Major Cations", "price": 65.00, "sku": "LAB-103.03-001-SM3125B", "active": True},
+            {"id": 68, "name": "Magnesium", "method": "SM 3125 B-2011", "technology": "ICP-MS", "category": "Metals", "subcategory": "Major Cations", "price": 65.00, "sku": "LAB-103.03-002-SM3125B", "active": True},
+            {"id": 69, "name": "Potassium", "method": "SM 3125 B-2011", "technology": "ICP-MS", "category": "Metals", "subcategory": "Major Cations", "price": 65.00, "sku": "LAB-103.03-003-SM3125B", "active": True},
+            {"id": 70, "name": "Silica, Dissolved", "method": "SM 3125 B-2011", "technology": "ICP-MS", "category": "Metals", "subcategory": "Major Cations", "price": 70.00, "sku": "LAB-103.03-004-SM3125B", "active": True},
+            {"id": 71, "name": "Sodium", "method": "SM 3125 B-2011", "technology": "ICP-MS", "category": "Metals", "subcategory": "Major Cations", "price": 65.00, "sku": "LAB-103.03-005-SM3125B", "active": True},
+            {"id": 72, "name": "Calcium", "method": "SM 3500-Ca B-2011", "technology": "Titrimetric", "category": "Metals", "subcategory": "Major Cations", "price": 60.00, "sku": "LAB-103.04-001-SM3500Ca", "active": True},
+            {"id": 73, "name": "Chloride", "method": "SM 4500-Cl- B-2011", "technology": "Titrimetric (Silver Nitrate)", "category": "Inorganics", "subcategory": "Major Anions", "price": 80.00, "sku": "LAB-102.21-001-SM4500Cl", "active": True},
+            {"id": 74, "name": "Chloride", "method": "SM 4500-Cl- C-2011", "technology": "Titrimetric (Mercuric Nitrate)", "category": "Inorganics", "subcategory": "Major Anions", "price": 80.00, "sku": "LAB-102.21-002-SM4500Cl", "active": True},
+            {"id": 75, "name": "Chloride", "method": "SM 4500-Cl- D-2011", "technology": "Potentiometric", "category": "Inorganics", "subcategory": "Major Anions", "price": 85.00, "sku": "LAB-102.21-003-SM4500Cl", "active": True},
+            {"id": 76, "name": "Cyanide, Total", "method": "SM 4500-CN- E-2016", "technology": "Spectrophotometric", "category": "Inorganics", "subcategory": "Toxic Inorganics", "price": 125.00, "sku": "LAB-102.22-001-SM4500CN", "active": True},
+            {"id": 77, "name": "Cyanide, Available", "method": "SM 4500-CN- G-2016", "technology": "Titrimetric or Spectrophotometric", "category": "Inorganics", "subcategory": "Toxic Inorganics", "price": 135.00, "sku": "LAB-102.22-002-SM4500CN", "active": True},
+            {"id": 78, "name": "Ammonia (as N)", "method": "SM 4500-NH3 C-2011", "technology": "Titrimetric", "category": "Inorganics", "subcategory": "Nutrients", "price": 65.00, "sku": "LAB-102.23-001-SM4500NH3", "active": True},
+            {"id": 79, "name": "Ammonia (as N)", "method": "SM 4500-NH3 D-2011", "technology": "Electrode", "category": "Inorganics", "subcategory": "Nutrients", "price": 65.00, "sku": "LAB-102.23-002-SM4500NH3", "active": True},
+            {"id": 80, "name": "Kjeldahl Nitrogen, Total (as N)", "method": "SM 4500-NH3 E-2011", "technology": "Electrode", "category": "Inorganics", "subcategory": "Nutrients", "price": 85.00, "sku": "LAB-102.23-003-SM4500NH3", "active": True},
+            {"id": 81, "name": "Nitrite (as N)", "method": "SM 4500-NO2- B-2011", "technology": "Spectrophotometric", "category": "Inorganics", "subcategory": "Nutrients", "price": 65.00, "sku": "LAB-102.24-001-SM4500NO2", "active": True},
+            {"id": 82, "name": "Nitrate (as N)", "method": "SM 4500-NO3- D-2016", "technology": "Electrode", "category": "Inorganics", "subcategory": "Nutrients", "price": 65.00, "sku": "LAB-102.24-002-SM4500NO3", "active": True},
+            {"id": 83, "name": "Phosphate, Ortho (as P)", "method": "SM 4500-P E-2011", "technology": "Colorimetric", "category": "Inorganics", "subcategory": "Nutrients", "price": 75.00, "sku": "LAB-102.25-001-SM4500P", "active": True},
+            {"id": 84, "name": "Phosphorus, Total", "method": "SM 4500-P E-2011", "technology": "Colorimetric", "category": "Inorganics", "subcategory": "Nutrients", "price": 75.00, "sku": "LAB-102.25-002-SM4500P", "active": True},
+            {"id": 85, "name": "Sulfite (as SO3)", "method": "SM 4500-SO32- B-2011", "technology": "Titrimetric", "category": "Inorganics", "subcategory": "Nutrients", "price": 70.00, "sku": "LAB-102.26-001-SM4500SO3", "active": True},
+            {"id": 86, "name": "Sulfate (as SO4)", "method": "SM 4500-SO42- D-2011", "technology": "Gravimetric, Drying", "category": "Inorganics", "subcategory": "Nutrients", "price": 80.00, "sku": "LAB-102.26-002-SM4500SO4", "active": True},
+            {"id": 87, "name": "Sulfate (as SO4)", "method": "SM 4500-SO42- E-2011", "technology": "Turbidimetric", "category": "Inorganics", "subcategory": "Nutrients", "price": 75.00, "sku": "LAB-102.26-003-SM4500SO4", "active": True},
+            {"id": 88, "name": "Sulfide (as S)", "method": "SM 4500-S2- D-2011", "technology": "Colorimetric", "category": "Inorganics", "subcategory": "Nutrients", "price": 85.00, "sku": "LAB-102.27-001-SM4500S2", "active": True},
+            {"id": 89, "name": "Sulfide (as S)", "method": "SM 4500-S2- F-2011", "technology": "Titrimetric", "category": "Inorganics", "subcategory": "Nutrients", "price": 85.00, "sku": "LAB-102.27-002-SM4500S2", "active": True},
+            {"id": 90, "name": "Sulfide (as S)", "method": "SM 4500-S2- G-2011", "technology": "Electrode", "category": "Inorganics", "subcategory": "Nutrients", "price": 85.00, "sku": "LAB-102.27-003-SM4500S2", "active": True},
+            {"id": 91, "name": "Biochemical Oxygen Demand (5-day)", "method": "SM 5210 B-2016", "technology": "DO Depletion", "category": "Physical Parameters", "subcategory": "Oxygen Demand", "price": 125.00, "sku": "LAB-102.28-001-SM5210B", "active": True},
+            {"id": 92, "name": "Biochemical Oxygen Demand", "method": "SM 5210 B-2017", "technology": "DO Depletion", "category": "Physical Parameters", "subcategory": "Oxygen Demand", "price": 125.00, "sku": "LAB-102.28-002-SM5210B", "active": True},
+            {"id": 93, "name": "Carbonaceous BOD", "method": "SM 5210 B-2016", "technology": "DO Depletion with N2 Inhibitor", "category": "Physical Parameters", "subcategory": "Oxygen Demand", "price": 135.00, "sku": "LAB-102.28-003-SM5210B", "active": True},
+            {"id": 94, "name": "Surfactants", "method": "SM 5540 C-2011", "technology": "Colorimetric", "category": "Organics", "subcategory": "Classical Organics", "price": 95.00, "sku": "LAB-104.03-003-SM5540C", "active": True},
+            {"id": 95, "name": "Nonionic Surfactants - CTAS", "method": "SM 5540 D-2011", "technology": "Colorimetric", "category": "Organics", "subcategory": "Classical Organics", "price": 105.00, "sku": "LAB-104.03-004-SM5540D", "active": True},
+            {"id": 96, "name": "Cation Panel (Ca, Mg, Na, K)", "method": "SM 3125 B", "technology": "ICP-MS", "category": "Metals", "subcategory": "Metal Panels", "price": 225.00, "sku": "LAB-103.05-001-SM3125B", "active": True},
+            {"id": 97, "name": "25 PFAS Panel (Drinking Water)", "method": "EPA 533", "technology": "HPLC-MS", "category": "Organics", "subcategory": "PFAS", "price": 850.00, "sku": "LAB-104.02-001-EPA533", "active": True},
+            {"id": 98, "name": "PFAS 18‑Compound Panel", "method": "EPA 537.1", "technology": "HPLC-MS", "category": "Organics", "subcategory": "PFAS", "price": 650.00, "sku": "LAB-104.02-002-EPA537.1", "active": True},
+            {"id": 99, "name": "PFAS 3-Compound Panel: PFNA, PFOA, PFOS", "method": "EPA 537.1", "technology": "HPLC-MS", "category": "Organics", "subcategory": "PFAS", "price": 275.00, "sku": "LAB-104.02-003-EPA537.1", "active": True},
+            {"id": 100, "name": "First Metal (24 metals)", "method": "EPA 6020B", "technology": "ICP-MS", "category": "Metals", "subcategory": "Metal Panels", "price": 350.00, "sku": "LAB-103.06-001-EPA6020B", "active": True},
+            {"id": 101, "name": "RCRA (8 metals: Ag, As, Ba, Cd, Cr, Hg, Pb, Se)", "method": "EPA 6020B", "technology": "ICP-MS", "category": "Metals", "subcategory": "Metal Panels", "price": 450.00, "sku": "LAB-103.06-002-EPA6020B", "active": True}
         ])
     
     if 'test_kits' not in st.session_state:
@@ -82,7 +136,7 @@ def init_session_state():
         st.session_state.audit_trail = pd.DataFrame(columns=['timestamp', 'table_name', 'record_id', 'field_name', 'old_value', 'new_value', 'change_type', 'user_name'])
     
     if 'next_analyte_id' not in st.session_state:
-        st.session_state.next_analyte_id = 48
+        st.session_state.next_analyte_id = 102
     
     if 'next_kit_id' not in st.session_state:
         st.session_state.next_kit_id = 5
@@ -127,7 +181,7 @@ page = st.sidebar.selectbox(
 
 # Dashboard Page
 if page == "Dashboard":
-    st.title("KELP Price Management System Dashboard")
+    st.title("KELP Price Management Dashboard")
     
     # Key metrics
     col1, col2, col3, col4 = st.columns(4)
