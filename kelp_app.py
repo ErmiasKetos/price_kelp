@@ -334,7 +334,7 @@ def render_sidebar():
     <div style="text-align: center; padding: 20px 0;">
         <div style="font-size: 32px; font-weight: 800; color: white; letter-spacing: 3px;">KELP</div>
         <div style="font-size: 11px; color: #00B4D8; letter-spacing: 1px; margin-top: 5px;">LABORATORY SERVICES</div>
-        <div style="font-size: 10px; color: rgba(255,255,255,0.7); margin-top: 3px;">CA ELAP Certified</div>
+        <div style="font-size: 10px; color: rgba(255,255,255,0.7); margin-top: 3px;">KETOS</div>
     </div>
     """, unsafe_allow_html=True)
     
