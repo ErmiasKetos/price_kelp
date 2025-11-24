@@ -52,11 +52,41 @@ def apply_custom_css():
             background: linear-gradient(180deg, {KETOS_COLORS['primary_blue']} 0%, #0D253D 100%);
         }}
         
+        [data-testid="stSidebar"] * {{
+            color: white !important;
+        }}
+        
         [data-testid="stSidebar"] .stMarkdown {{
-            color: white;
+            color: white !important;
         }}
         
         [data-testid="stSidebar"] .stRadio label {{
+            color: white !important;
+        }}
+        
+        [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label {{
+            color: white !important;
+        }}
+        
+        [data-testid="stSidebar"] p {{
+            color: white !important;
+        }}
+        
+        [data-testid="stSidebar"] span {{
+            color: white !important;
+        }}
+        
+        [data-testid="stSidebar"] h1, 
+        [data-testid="stSidebar"] h2, 
+        [data-testid="stSidebar"] h3 {{
+            color: white !important;
+        }}
+        
+        [data-testid="stSidebar"] .stRadio > div {{
+            color: white !important;
+        }}
+        
+        [data-testid="stSidebar"] [data-baseweb="radio"] {{
             color: white !important;
         }}
         
@@ -1218,7 +1248,7 @@ def render_settings():
     with tab2:
         st.subheader("📋 Audit Log")
         
-        if not st.session_state.audit_log.empty:
+        if 'audit_log' in st.session_state and not st.session_state.audit_log.empty:
             st.dataframe(
                 st.session_state.audit_log.sort_values('timestamp', ascending=False),
                 use_container_width=True,
