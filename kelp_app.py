@@ -482,39 +482,113 @@ def render_quote_generator():
         discount_pct = st.number_input("Discount (%)", min_value=0.0, max_value=50.0, value=0.0, step=0.5)
     
     st.markdown("---")
-    st.subheader("🧪 Select Tests")
+    
+    # Metals Panel Section - Separate from other tests
+    st.subheader("🔬 Metals Panel (ICP-MS)")
+    
+    metals_col1, metals_col2 = st.columns(2)
+    
+    potable_metals_list = ["Aluminum", "Antimony", "Arsenic", "Barium", "Beryllium", "Cadmium", "Chromium", "Cobalt", "Copper", "Lead", "Manganese", "Mercury", "Molybdenum", "Nickel", "Selenium", "Silver", "Thallium", "Thorium", "Uranium", "Vanadium", "Zinc"]
+    nonpotable_metals_list = ["Aluminum", "Antimony", "Arsenic", "Barium", "Beryllium", "Boron", "Cadmium", "Calcium", "Chromium", "Cobalt", "Copper", "Iron", "Lead", "Magnesium", "Manganese", "Mercury", "Nickel", "Potassium", "Selenium", "Silicon", "Silver", "Sodium", "Thallium", "Vanadium", "Uranium", "Zinc"]
+    
+    with metals_col1:
+        st.markdown("**🚰 Potable Water - EPA 200.8**")
+        st.caption("$70 first metal + $12 each additional")
+        selected_potable_metals = st.multiselect(
+            "Select Potable Metals",
+            potable_metals_list,
+            key="quote_potable_metals"
+        )
+        potable_metals_qty = st.number_input("Quantity (samples)", min_value=0, value=1 if selected_potable_metals else 0, key="potable_qty")
+        
+        if selected_potable_metals:
+            potable_price = calculate_metals_price(len(selected_potable_metals), "Potable")
+            st.success(f"**{len(selected_potable_metals)} metals selected = ${potable_price:.2f}**")
+    
+    with metals_col2:
+        st.markdown("**🏭 Non-Potable Water - EPA 6020B**")
+        st.caption("$130 first metal + $45 each additional")
+        selected_nonpotable_metals = st.multiselect(
+            "Select Non-Potable Metals",
+            nonpotable_metals_list,
+            key="quote_nonpotable_metals"
+        )
+        nonpotable_metals_qty = st.number_input("Quantity (samples)", min_value=0, value=1 if selected_nonpotable_metals else 0, key="nonpotable_qty")
+        
+        if selected_nonpotable_metals:
+            nonpotable_price = calculate_metals_price(len(selected_nonpotable_metals), "Non-Potable")
+            st.success(f"**{len(selected_nonpotable_metals)} metals selected = ${nonpotable_price:.2f}**")
+    
+    st.markdown("---")
+    st.subheader("🧪 Select Other Tests")
     
     active = st.session_state.analytes[st.session_state.analytes['active']]
+    # Exclude the tiered metals from the regular list
+    non_metals_active = active[~active.get('pricing_type', '').eq('tiered') if 'pricing_type' in active.columns else active['id'] > 0]
     
     col1, col2 = st.columns([2, 1])
     
     with col1:
         selected_items = []
-        for category in active['category'].unique():
-            cat_tests = active[active['category'] == category]
+        
+        # Add metals if selected
+        if selected_potable_metals and potable_metals_qty > 0:
+            potable_price = calculate_metals_price(len(selected_potable_metals), "Potable")
+            metals_desc = ", ".join(selected_potable_metals)
+            selected_items.append({
+                'id': 'metals_potable',
+                'description': f"Individual Element by ICP/ICP-MS ({metals_desc})",
+                'method': 'EPA 200.8',
+                'qty': potable_metals_qty,
+                'price': potable_price,
+                'tat': 'Standard (5-7 Day)',
+                'total': potable_price * potable_metals_qty
+            })
+        
+        if selected_nonpotable_metals and nonpotable_metals_qty > 0:
+            nonpotable_price = calculate_metals_price(len(selected_nonpotable_metals), "Non-Potable")
+            metals_desc = ", ".join(selected_nonpotable_metals)
+            selected_items.append({
+                'id': 'metals_nonpotable',
+                'description': f"Individual Element by ICP/ICP-MS ({metals_desc})",
+                'method': 'EPA 6020B',
+                'qty': nonpotable_metals_qty,
+                'price': nonpotable_price,
+                'tat': 'Standard (5-7 Day)',
+                'total': nonpotable_price * nonpotable_metals_qty
+            })
+        
+        # Other tests by category
+        for category in non_metals_active['category'].unique():
+            cat_tests = non_metals_active[non_metals_active['category'] == category]
+            # Skip if this is the metals category with only tiered items
+            if category == "METALS" and len(cat_tests) == 0:
+                continue
+                
             with st.expander(f"**{category}** ({len(cat_tests)} tests)"):
                 for _, test in cat_tests.iterrows():
-                    cols = st.columns([3, 1, 1])
+                    # Skip tiered pricing items (handled above)
+                    if test.get('pricing_type') == 'tiered':
+                        continue
+                    
+                    cols = st.columns([3, 1])
                     with cols[0]:
-                        selected = st.checkbox(f"{test['name']} ({test['method']}) - ${test['price']:.2f}", key=f"q_{test['id']}")
+                        selected = st.checkbox(
+                            f"{test['name']} ({test['method']}) - ${test['price']:.2f}",
+                            key=f"q_{test['id']}"
+                        )
                     with cols[1]:
                         qty = st.number_input("Qty", min_value=1, value=1, key=f"qty_{test['id']}", label_visibility="collapsed")
                     
                     if selected:
-                        if test.get('pricing_type') == 'tiered':
-                            with cols[2]:
-                                num_metals = st.number_input("# Metals", min_value=1, max_value=26, value=5, key=f"m_{test['id']}", label_visibility="collapsed")
-                            price = calculate_metals_price(num_metals, test['water_type'])
-                            metals_list = st.text_input("Metal names", value="Iron, Copper, Lead, Zinc, Manganese", key=f"mlist_{test['id']}")
-                            description = f"Individual Element by ICP/ICP-MS ({metals_list})"
-                        else:
-                            price = test['price']
-                            description = test['name']
-                        
                         selected_items.append({
-                            'id': test['id'], 'description': description, 'method': test['method'],
-                            'qty': qty, 'price': price, 'tat': test.get('tat', 'Standard (5-7 Day)'),
-                            'total': price * qty
+                            'id': test['id'],
+                            'description': test['name'],
+                            'method': test['method'],
+                            'qty': qty,
+                            'price': test['price'],
+                            'tat': test.get('tat', 'Standard (5-7 Day)'),
+                            'total': test['price'] * qty
                         })
     
     with col2:
