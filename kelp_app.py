@@ -1,7 +1,7 @@
 """
 KELP Laboratory Services - Price Management System
-A modern, user-friendly application with KETOS branding
-Version 2.1 - November 2025 (Fixed)
+Complete Version with Full Cost Breakdown, Water Types, and Tiered Metals Pricing
+Version 3.0 - November 2025
 """
 
 import streamlit as st
@@ -10,15 +10,25 @@ import numpy as np
 from datetime import datetime, date, timedelta
 import json
 import io
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Optional
 import plotly.express as px
 import plotly.graph_objects as go
 
 # ============================================================================
-# CONFIGURATION & BRANDING
+# PAGE CONFIGURATION
 # ============================================================================
 
-# KETOS Brand Colors
+st.set_page_config(
+    page_title="KELP Laboratory Services",
+    page_icon="🔬",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# ============================================================================
+# KETOS BRAND COLORS
+# ============================================================================
+
 KETOS_COLORS = {
     "primary_blue": "#1B3B6F",
     "bright_cyan": "#00B4D8",
@@ -32,15 +42,10 @@ KETOS_COLORS = {
     "danger": "#E74C3C",
 }
 
-# Configure Streamlit page with KETOS branding
-st.set_page_config(
-    page_title="KELP Laboratory Services",
-    page_icon="🔬",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+# ============================================================================
+# CUSTOM CSS
+# ============================================================================
 
-# Custom CSS for KETOS branding
 def apply_custom_css():
     st.markdown(f"""
     <style>
@@ -48,6 +53,7 @@ def apply_custom_css():
             background-color: #F8FAFC;
         }}
         
+        /* Sidebar styling */
         [data-testid="stSidebar"] {{
             background: linear-gradient(180deg, {KETOS_COLORS['primary_blue']} 0%, #0D253D 100%);
         }}
@@ -56,106 +62,70 @@ def apply_custom_css():
             color: white !important;
         }}
         
-        [data-testid="stSidebar"] .stMarkdown {{
+        [data-testid="stSidebar"] .stSelectbox label,
+        [data-testid="stSidebar"] .stRadio label,
+        [data-testid="stSidebar"] .stCheckbox label {{
             color: white !important;
         }}
         
-        [data-testid="stSidebar"] .stRadio label {{
-            color: white !important;
-        }}
-        
-        [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label {{
-            color: white !important;
-        }}
-        
-        [data-testid="stSidebar"] p {{
-            color: white !important;
-        }}
-        
-        [data-testid="stSidebar"] span {{
+        [data-testid="stSidebar"] p,
+        [data-testid="stSidebar"] span,
+        [data-testid="stSidebar"] div {{
             color: white !important;
         }}
         
         [data-testid="stSidebar"] h1, 
         [data-testid="stSidebar"] h2, 
-        [data-testid="stSidebar"] h3 {{
+        [data-testid="stSidebar"] h3,
+        [data-testid="stSidebar"] h4 {{
             color: white !important;
         }}
         
-        [data-testid="stSidebar"] .stRadio > div {{
-            color: white !important;
-        }}
-        
-        [data-testid="stSidebar"] [data-baseweb="radio"] {{
-            color: white !important;
-        }}
-        
+        /* Headers */
         h1 {{
             color: {KETOS_COLORS['primary_blue']} !important;
-            font-family: 'Inter', sans-serif;
             font-weight: 700;
         }}
         
         h2, h3 {{
             color: {KETOS_COLORS['dark_gray']} !important;
-            font-family: 'Inter', sans-serif;
         }}
         
+        /* Metric cards */
         [data-testid="stMetric"] {{
             background-color: white;
-            padding: 20px;
-            border-radius: 12px;
+            padding: 15px;
+            border-radius: 10px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.08);
             border-left: 4px solid {KETOS_COLORS['bright_cyan']};
         }}
         
-        [data-testid="stMetric"] label {{
-            color: {KETOS_COLORS['dark_gray']} !important;
-            font-weight: 500;
-        }}
-        
-        [data-testid="stMetric"] [data-testid="stMetricValue"] {{
-            color: {KETOS_COLORS['primary_blue']} !important;
-            font-weight: 700;
-        }}
-        
+        /* Buttons */
         .stButton > button {{
             background: linear-gradient(135deg, {KETOS_COLORS['bright_cyan']} 0%, {KETOS_COLORS['teal']} 100%);
             color: white;
             border: none;
             border-radius: 8px;
-            padding: 10px 24px;
             font-weight: 600;
-            transition: all 0.3s ease;
         }}
         
         .stButton > button:hover {{
-            transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(0, 180, 216, 0.4);
         }}
         
+        /* DataFrames */
         .stDataFrame {{
-            border-radius: 12px;
+            border-radius: 10px;
             overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
         }}
         
-        .stTabs [data-baseweb="tab-list"] {{
-            gap: 8px;
-        }}
-        
-        .stTabs [data-baseweb="tab"] {{
-            background-color: white;
-            border-radius: 8px 8px 0 0;
-            padding: 12px 24px;
-            border: none;
-        }}
-        
+        /* Tabs */
         .stTabs [aria-selected="true"] {{
             background-color: {KETOS_COLORS['bright_cyan']} !important;
             color: white !important;
         }}
         
+        /* Hide Streamlit branding */
         #MainMenu {{visibility: hidden;}}
         footer {{visibility: hidden;}}
         
@@ -163,269 +133,200 @@ def apply_custom_css():
     """, unsafe_allow_html=True)
 
 # ============================================================================
-# DATA INITIALIZATION - UPDATED PRICING FROM CA ELAP 2025
+# DATA - COMPLETE ANALYTE CATALOG WITH FULL COST BREAKDOWN
 # ============================================================================
 
-def get_default_analytes():
-    """Return default analytes DataFrame with 2025 CA ELAP pricing"""
+def get_analytes_data():
+    """
+    Complete analyte data with full cost breakdown from CA ELAP 2025 Cost Calculator.
+    Includes: Standards, Consumables, Gases/Utilities, Labor, Depreciation, QC OH (20%), Facility OH (35%)
+    """
     return pd.DataFrame([
         # PHYSICAL/GENERAL CHEMISTRY
-        {"id": 1, "name": "pH", "method": "EPA 150.1", "technology": "Electrometric", "category": "Physical/General Chemistry", "subcategory": "Basic Physical", "price": 30.00, "sku": "LAB-102.015-001-EPA150.1", "active": True, "pricing_type": "standard", "water_type": "Potable", "total_cost": 12.71, "margin_percent": 57.63},
-        {"id": 2, "name": "Turbidity", "method": "EPA 180.1", "technology": "Nephelometric", "category": "Physical/General Chemistry", "subcategory": "Optical", "price": 40.00, "sku": "LAB-102.02-001-EPA180.1", "active": True, "pricing_type": "standard", "water_type": "Potable", "total_cost": 13.28, "margin_percent": 66.79},
-        {"id": 3, "name": "Conductivity", "method": "SM 2510 B", "technology": "Conductivity Meter", "category": "Physical/General Chemistry", "subcategory": "Electrochemical", "price": 40.00, "sku": "LAB-102.13-001-SM2510B-1997", "active": True, "pricing_type": "standard", "water_type": "Potable", "total_cost": 13.28, "margin_percent": 66.79},
-        {"id": 4, "name": "Total Dissolved Solids (TDS)", "method": "SM 2540 C", "technology": "Gravimetric", "category": "Physical/General Chemistry", "subcategory": "Solids", "price": 60.00, "sku": "LAB-102.14-001-SM2540C-1997", "active": True, "pricing_type": "standard", "water_type": "Potable", "total_cost": 41.08, "margin_percent": 31.53},
-        {"id": 5, "name": "Total Suspended Solids (TSS)", "method": "SM 2540 D", "technology": "Gravimetric", "category": "Physical/General Chemistry", "subcategory": "Solids", "price": 80.00, "sku": "LAB-108.073-001-SM2540D-2015", "active": True, "pricing_type": "standard", "water_type": "Non-Potable", "total_cost": 41.08, "margin_percent": 48.65},
-        {"id": 6, "name": "BOD (5-day)", "method": "SM 5210 B", "technology": "DO Depletion", "category": "Physical/General Chemistry", "subcategory": "Oxygen Demand", "price": 180.00, "sku": "LAB-108.206-001-SM5210B-2016", "active": True, "pricing_type": "standard", "water_type": "Non-Potable", "total_cost": 27.95, "margin_percent": 84.47},
-        {"id": 7, "name": "Chemical Oxygen Demand (COD)", "method": "EPA 410.4", "technology": "Spectrophotometric", "category": "Physical/General Chemistry", "subcategory": "Oxygen Demand", "price": 150.00, "sku": "LAB-102.10-002-EPA410.4", "active": True, "pricing_type": "standard", "water_type": "Non-Potable", "total_cost": 33.33, "margin_percent": 77.78},
-        {"id": 8, "name": "Alkalinity", "method": "SM 2320 B", "technology": "Titrimetric", "category": "Physical/General Chemistry", "subcategory": "Acid-Base", "price": 50.00, "sku": "LAB-102.1-001-SM2320B-1997", "active": True, "pricing_type": "standard", "water_type": "Potable", "total_cost": 24.20, "margin_percent": 51.60},
-        {"id": 9, "name": "Hardness - Total", "method": "SM 2340 C", "technology": "Titrimetric", "category": "Physical/General Chemistry", "subcategory": "Minerals", "price": 80.00, "sku": "LAB-102.121-001-SM2340C-1997", "active": True, "pricing_type": "standard", "water_type": "Potable", "total_cost": 24.20, "margin_percent": 69.75},
-        {"id": 10, "name": "Dissolved Oxygen", "method": "SM 4500-O", "technology": "Electrometric", "category": "Physical/General Chemistry", "subcategory": "Basic Physical", "price": 30.00, "sku": "LAB-102.015-002-SM4500O", "active": True, "pricing_type": "standard", "water_type": "Potable", "total_cost": 12.71, "margin_percent": 57.63},
-        {"id": 11, "name": "Temperature", "method": "SM 2550 B", "technology": "Thermometric", "category": "Physical/General Chemistry", "subcategory": "Basic Physical", "price": 15.00, "sku": "LAB-108.08-001-SM2550B-2010", "active": True, "pricing_type": "standard", "water_type": "Non-Potable", "total_cost": 12.71, "margin_percent": 15.27},
-        {"id": 12, "name": "Dissolved Organic Carbon (DOC)", "method": "EPA 415.3", "technology": "Spectrophotometric", "category": "Organics", "subcategory": "Carbon", "price": 130.00, "sku": "LAB-102.085-001-EPA415.3Rev.1.1", "active": True, "pricing_type": "standard", "water_type": "Potable", "total_cost": 33.33, "margin_percent": 74.37},
-        {"id": 13, "name": "Total Organic Carbon (TOC)", "method": "EPA 415.3", "technology": "Spectrophotometric", "category": "Organics", "subcategory": "Carbon", "price": 160.00, "sku": "LAB-102.086-003-EPA415.3Rev.1.2", "active": True, "pricing_type": "standard", "water_type": "Potable", "total_cost": 33.33, "margin_percent": 79.17},
+        {"id": 1, "name": "pH", "method": "EPA 150.1", "water_type": "Potable", "category": "PHYSICAL/GENERAL CHEMISTRY", "method_group": "Wet Chemistry - pH/Temp/DO", "standards": 0.00, "consumables": 0.90, "gases_utilities": 0.00, "labor": 7.15, "depreciation": 0.15, "subtotal": 8.20, "qc_oh": 1.64, "facility_oh": 2.87, "total_cost": 12.71, "price": 30.00, "margin_dollars": 17.29, "margin_percent": 57.63, "active": True},
+        {"id": 2, "name": "pH", "method": "EPA 150.2", "water_type": "Non-Potable", "category": "PHYSICAL/GENERAL CHEMISTRY", "method_group": "Wet Chemistry - pH/Temp/DO", "standards": 0.00, "consumables": 0.90, "gases_utilities": 0.00, "labor": 7.15, "depreciation": 0.15, "subtotal": 8.20, "qc_oh": 1.64, "facility_oh": 2.87, "total_cost": 12.71, "price": 30.00, "margin_dollars": 17.29, "margin_percent": 57.63, "active": True},
+        {"id": 3, "name": "Temperature", "method": "SM 2550 B", "water_type": "Non-Potable", "category": "PHYSICAL/GENERAL CHEMISTRY", "method_group": "Wet Chemistry - pH/Temp/DO", "standards": 0.00, "consumables": 0.90, "gases_utilities": 0.00, "labor": 7.15, "depreciation": 0.15, "subtotal": 8.20, "qc_oh": 1.64, "facility_oh": 2.87, "total_cost": 12.71, "price": 15.00, "margin_dollars": 2.29, "margin_percent": 15.27, "active": True},
+        {"id": 4, "name": "Dissolved Oxygen", "method": "SM 4500-O", "water_type": "Potable", "category": "PHYSICAL/GENERAL CHEMISTRY", "method_group": "Wet Chemistry - pH/Temp/DO", "standards": 0.00, "consumables": 0.90, "gases_utilities": 0.00, "labor": 7.15, "depreciation": 0.15, "subtotal": 8.20, "qc_oh": 1.64, "facility_oh": 2.87, "total_cost": 12.71, "price": 30.00, "margin_dollars": 17.29, "margin_percent": 57.63, "active": True},
+        {"id": 5, "name": "Turbidity", "method": "EPA 180.1", "water_type": "Potable", "category": "PHYSICAL/GENERAL CHEMISTRY", "method_group": "Turbidity/Conductivity", "standards": 0.00, "consumables": 0.80, "gases_utilities": 0.00, "labor": 7.37, "depreciation": 0.40, "subtotal": 8.57, "qc_oh": 1.71, "facility_oh": 3.00, "total_cost": 13.28, "price": 40.00, "margin_dollars": 26.72, "margin_percent": 66.79, "active": True},
+        {"id": 6, "name": "Turbidity", "method": "EPA 180.1", "water_type": "Non-Potable", "category": "PHYSICAL/GENERAL CHEMISTRY", "method_group": "Turbidity/Conductivity", "standards": 0.00, "consumables": 0.80, "gases_utilities": 0.00, "labor": 7.37, "depreciation": 0.40, "subtotal": 8.57, "qc_oh": 1.71, "facility_oh": 3.00, "total_cost": 13.28, "price": 40.00, "margin_dollars": 26.72, "margin_percent": 66.79, "active": True},
+        {"id": 7, "name": "Conductivity", "method": "SM 2510 B", "water_type": "Potable", "category": "PHYSICAL/GENERAL CHEMISTRY", "method_group": "Turbidity/Conductivity", "standards": 0.00, "consumables": 0.80, "gases_utilities": 0.00, "labor": 7.37, "depreciation": 0.40, "subtotal": 8.57, "qc_oh": 1.71, "facility_oh": 3.00, "total_cost": 13.28, "price": 40.00, "margin_dollars": 26.72, "margin_percent": 66.79, "active": True},
+        {"id": 8, "name": "Conductivity", "method": "EPA 120.1", "water_type": "Non-Potable", "category": "PHYSICAL/GENERAL CHEMISTRY", "method_group": "Turbidity/Conductivity", "standards": 0.00, "consumables": 0.80, "gases_utilities": 0.00, "labor": 7.37, "depreciation": 0.40, "subtotal": 8.57, "qc_oh": 1.71, "facility_oh": 3.00, "total_cost": 13.28, "price": 40.00, "margin_dollars": 26.72, "margin_percent": 66.79, "active": True},
+        {"id": 9, "name": "Alkalinity", "method": "SM 2320 B", "water_type": "Potable", "category": "PHYSICAL/GENERAL CHEMISTRY", "method_group": "Titrimetry (Alkalinity/Hardness)", "standards": 0.00, "consumables": 1.80, "gases_utilities": 0.00, "labor": 13.06, "depreciation": 0.75, "subtotal": 15.61, "qc_oh": 3.12, "facility_oh": 5.46, "total_cost": 24.20, "price": 50.00, "margin_dollars": 25.80, "margin_percent": 51.60, "active": True},
+        {"id": 10, "name": "Hardness - Total", "method": "SM 2340 C", "water_type": "Potable", "category": "PHYSICAL/GENERAL CHEMISTRY", "method_group": "Titrimetry (Alkalinity/Hardness)", "standards": 0.00, "consumables": 1.80, "gases_utilities": 0.00, "labor": 13.06, "depreciation": 0.75, "subtotal": 15.61, "qc_oh": 3.12, "facility_oh": 5.46, "total_cost": 24.20, "price": 80.00, "margin_dollars": 55.80, "margin_percent": 69.75, "active": True},
+        {"id": 11, "name": "Hardness - Total", "method": "EPA 130.1", "water_type": "Non-Potable", "category": "PHYSICAL/GENERAL CHEMISTRY", "method_group": "Titrimetry (Alkalinity/Hardness)", "standards": 0.00, "consumables": 1.80, "gases_utilities": 0.00, "labor": 13.06, "depreciation": 0.75, "subtotal": 15.61, "qc_oh": 3.12, "facility_oh": 5.46, "total_cost": 24.20, "price": 80.00, "margin_dollars": 55.80, "margin_percent": 69.75, "active": True},
+        {"id": 12, "name": "Total Dissolved Solids", "method": "SM 2540 C", "water_type": "Potable", "category": "PHYSICAL/GENERAL CHEMISTRY", "method_group": "Solids Analysis (Gravimetric)", "standards": 0.00, "consumables": 1.20, "gases_utilities": 0.00, "labor": 24.89, "depreciation": 0.42, "subtotal": 26.50, "qc_oh": 5.30, "facility_oh": 9.28, "total_cost": 41.08, "price": 60.00, "margin_dollars": 18.92, "margin_percent": 31.53, "active": True},
+        {"id": 13, "name": "Total Dissolved Solids", "method": "SM 2540 C", "water_type": "Non-Potable", "category": "PHYSICAL/GENERAL CHEMISTRY", "method_group": "Solids Analysis (Gravimetric)", "standards": 0.00, "consumables": 1.20, "gases_utilities": 0.00, "labor": 24.89, "depreciation": 0.42, "subtotal": 26.50, "qc_oh": 5.30, "facility_oh": 9.28, "total_cost": 41.08, "price": 60.00, "margin_dollars": 18.92, "margin_percent": 31.53, "active": True},
+        {"id": 14, "name": "Total Suspended Solids", "method": "SM 2540 D", "water_type": "Non-Potable", "category": "PHYSICAL/GENERAL CHEMISTRY", "method_group": "Solids Analysis (Gravimetric)", "standards": 0.00, "consumables": 1.20, "gases_utilities": 0.00, "labor": 24.89, "depreciation": 0.42, "subtotal": 26.50, "qc_oh": 5.30, "facility_oh": 9.28, "total_cost": 41.08, "price": 80.00, "margin_dollars": 38.92, "margin_percent": 48.65, "active": True},
+        {"id": 15, "name": "BOD (5-day)", "method": "SM 5210 B", "water_type": "Non-Potable", "category": "PHYSICAL/GENERAL CHEMISTRY", "method_group": "Spectrophotometry - BOD/COD", "standards": 0.00, "consumables": 2.50, "gases_utilities": 0.00, "labor": 14.93, "depreciation": 0.60, "subtotal": 18.03, "qc_oh": 3.61, "facility_oh": 6.31, "total_cost": 27.95, "price": 180.00, "margin_dollars": 152.05, "margin_percent": 84.47, "active": True},
+        {"id": 16, "name": "BOD, Carbonaceous", "method": "SM 5210 B", "water_type": "Non-Potable", "category": "PHYSICAL/GENERAL CHEMISTRY", "method_group": "Spectrophotometry - BOD/COD", "standards": 0.00, "consumables": 2.50, "gases_utilities": 0.00, "labor": 14.93, "depreciation": 0.60, "subtotal": 18.03, "qc_oh": 3.61, "facility_oh": 6.31, "total_cost": 27.95, "price": 200.00, "margin_dollars": 172.05, "margin_percent": 86.02, "active": True},
+        {"id": 17, "name": "Chemical Oxygen Demand", "method": "EPA 410.4", "water_type": "Non-Potable", "category": "PHYSICAL/GENERAL CHEMISTRY", "method_group": "Spectrophotometry - Nutrients", "standards": 0.00, "consumables": 3.75, "gases_utilities": 0.00, "labor": 16.50, "depreciation": 1.25, "subtotal": 21.50, "qc_oh": 4.30, "facility_oh": 7.53, "total_cost": 33.33, "price": 150.00, "margin_dollars": 116.68, "margin_percent": 77.78, "active": True},
         
-        # INORGANICS - Ion Chromatography (EPA 300.1)
-        {"id": 14, "name": "Bromide", "method": "EPA 300.1", "technology": "Ion Chromatography", "category": "Inorganics", "subcategory": "Anions", "price": 80.00, "sku": "LAB-102.04-001-EPA300.1", "active": True, "pricing_type": "standard", "water_type": "Potable", "total_cost": 28.14, "margin_percent": 64.82},
-        {"id": 15, "name": "Bromate", "method": "EPA 300.1", "technology": "Ion Chromatography", "category": "Inorganics", "subcategory": "Anions", "price": 160.00, "sku": "LAB-102.04-004-EPA300.1", "active": True, "pricing_type": "standard", "water_type": "Potable", "total_cost": 28.14, "margin_percent": 82.41},
-        {"id": 16, "name": "Chloride", "method": "EPA 300.1", "technology": "Ion Chromatography", "category": "Inorganics", "subcategory": "Anions", "price": 80.00, "sku": "LAB-102.04-005-EPA300.1", "active": True, "pricing_type": "standard", "water_type": "Potable", "total_cost": 28.14, "margin_percent": 64.82},
-        {"id": 17, "name": "Chlorite", "method": "EPA 300.1", "technology": "Ion Chromatography", "category": "Inorganics", "subcategory": "Anions", "price": 140.00, "sku": "LAB-102.04-002-EPA300.1", "active": True, "pricing_type": "standard", "water_type": "Potable", "total_cost": 28.14, "margin_percent": 79.90},
-        {"id": 18, "name": "Chlorate", "method": "EPA 300.1", "technology": "Ion Chromatography", "category": "Inorganics", "subcategory": "Anions", "price": 130.00, "sku": "LAB-102.04-003-EPA300.1", "active": True, "pricing_type": "standard", "water_type": "Potable", "total_cost": 28.14, "margin_percent": 78.35},
-        {"id": 19, "name": "Fluoride", "method": "EPA 300.1", "technology": "Ion Chromatography", "category": "Inorganics", "subcategory": "Anions", "price": 80.00, "sku": "LAB-102.04-006-EPA300.1", "active": True, "pricing_type": "standard", "water_type": "Potable", "total_cost": 28.14, "margin_percent": 64.82},
-        {"id": 20, "name": "Nitrate", "method": "EPA 300.1", "technology": "Ion Chromatography", "category": "Inorganics", "subcategory": "Nutrients", "price": 80.00, "sku": "LAB-102.04-007-EPA300.1", "active": True, "pricing_type": "standard", "water_type": "Potable", "total_cost": 28.14, "margin_percent": 64.82},
-        {"id": 21, "name": "Nitrite", "method": "EPA 300.1", "technology": "Ion Chromatography", "category": "Inorganics", "subcategory": "Nutrients", "price": 80.00, "sku": "LAB-102.04-008-EPA300.1", "active": True, "pricing_type": "standard", "water_type": "Potable", "total_cost": 28.14, "margin_percent": 64.82},
-        {"id": 22, "name": "Phosphate, Ortho", "method": "EPA 300.1", "technology": "Ion Chromatography", "category": "Inorganics", "subcategory": "Nutrients", "price": 80.00, "sku": "LAB-102.04-009-EPA300.1", "active": True, "pricing_type": "standard", "water_type": "Potable", "total_cost": 28.14, "margin_percent": 64.82},
-        {"id": 23, "name": "Sulfate", "method": "EPA 300.1", "technology": "Ion Chromatography", "category": "Inorganics", "subcategory": "Anions", "price": 80.00, "sku": "LAB-102.04-010-EPA300.1", "active": True, "pricing_type": "standard", "water_type": "Potable", "total_cost": 28.14, "margin_percent": 64.82},
-        {"id": 24, "name": "Perchlorate", "method": "EPA 314.2", "technology": "IC-MS", "category": "Inorganics", "subcategory": "Specialty", "price": 350.00, "sku": "LAB-102.049-001-EPA314.2", "active": True, "pricing_type": "standard", "water_type": "Potable", "total_cost": 57.85, "margin_percent": 83.47},
+        # INORGANICS - EPA 300.1 (Ion Chromatography)
+        {"id": 18, "name": "Bromide", "method": "EPA 300.1", "water_type": "Potable", "category": "INORGANICS", "method_group": "EPA 300.1 (IC Anions)", "standards": 1.25, "consumables": 1.72, "gases_utilities": 0.00, "labor": 8.94, "depreciation": 6.25, "subtotal": 18.16, "qc_oh": 3.63, "facility_oh": 6.36, "total_cost": 28.14, "price": 80.00, "margin_dollars": 51.86, "margin_percent": 64.82, "active": True},
+        {"id": 19, "name": "Bromide", "method": "EPA 300.1", "water_type": "Non-Potable", "category": "INORGANICS", "method_group": "EPA 300.1 (IC Anions)", "standards": 1.25, "consumables": 1.72, "gases_utilities": 0.00, "labor": 8.94, "depreciation": 6.25, "subtotal": 18.16, "qc_oh": 3.63, "facility_oh": 6.36, "total_cost": 28.14, "price": 80.00, "margin_dollars": 51.86, "margin_percent": 64.82, "active": True},
+        {"id": 20, "name": "Bromate", "method": "EPA 300.1", "water_type": "Potable", "category": "INORGANICS", "method_group": "EPA 300.1 (IC Anions)", "standards": 1.25, "consumables": 1.72, "gases_utilities": 0.00, "labor": 8.94, "depreciation": 6.25, "subtotal": 18.16, "qc_oh": 3.63, "facility_oh": 6.36, "total_cost": 28.14, "price": 160.00, "margin_dollars": 131.86, "margin_percent": 82.41, "active": True},
+        {"id": 21, "name": "Bromate", "method": "EPA 300.1", "water_type": "Non-Potable", "category": "INORGANICS", "method_group": "EPA 300.1 (IC Anions)", "standards": 1.25, "consumables": 1.72, "gases_utilities": 0.00, "labor": 8.94, "depreciation": 6.25, "subtotal": 18.16, "qc_oh": 3.63, "facility_oh": 6.36, "total_cost": 28.14, "price": 160.00, "margin_dollars": 131.86, "margin_percent": 82.41, "active": True},
+        {"id": 22, "name": "Chloride", "method": "EPA 300.1", "water_type": "Potable", "category": "INORGANICS", "method_group": "EPA 300.1 (IC Anions)", "standards": 1.25, "consumables": 1.72, "gases_utilities": 0.00, "labor": 8.94, "depreciation": 6.25, "subtotal": 18.16, "qc_oh": 3.63, "facility_oh": 6.36, "total_cost": 28.14, "price": 80.00, "margin_dollars": 51.86, "margin_percent": 64.82, "active": True},
+        {"id": 23, "name": "Chloride", "method": "EPA 300.1", "water_type": "Non-Potable", "category": "INORGANICS", "method_group": "EPA 300.1 (IC Anions)", "standards": 1.25, "consumables": 1.72, "gases_utilities": 0.00, "labor": 8.94, "depreciation": 6.25, "subtotal": 18.16, "qc_oh": 3.63, "facility_oh": 6.36, "total_cost": 28.14, "price": 80.00, "margin_dollars": 51.86, "margin_percent": 64.82, "active": True},
+        {"id": 24, "name": "Chlorite", "method": "EPA 300.1", "water_type": "Potable", "category": "INORGANICS", "method_group": "EPA 300.1 (IC Anions)", "standards": 1.25, "consumables": 1.72, "gases_utilities": 0.00, "labor": 8.94, "depreciation": 6.25, "subtotal": 18.16, "qc_oh": 3.63, "facility_oh": 6.36, "total_cost": 28.14, "price": 140.00, "margin_dollars": 111.86, "margin_percent": 79.90, "active": True},
+        {"id": 25, "name": "Chlorite", "method": "EPA 300.1", "water_type": "Non-Potable", "category": "INORGANICS", "method_group": "EPA 300.1 (IC Anions)", "standards": 1.25, "consumables": 1.72, "gases_utilities": 0.00, "labor": 8.94, "depreciation": 6.25, "subtotal": 18.16, "qc_oh": 3.63, "facility_oh": 6.36, "total_cost": 28.14, "price": 140.00, "margin_dollars": 111.86, "margin_percent": 79.90, "active": True},
+        {"id": 26, "name": "Chlorate", "method": "EPA 300.1", "water_type": "Potable", "category": "INORGANICS", "method_group": "EPA 300.1 (IC Anions)", "standards": 1.25, "consumables": 1.72, "gases_utilities": 0.00, "labor": 8.94, "depreciation": 6.25, "subtotal": 18.16, "qc_oh": 3.63, "facility_oh": 6.36, "total_cost": 28.14, "price": 130.00, "margin_dollars": 101.86, "margin_percent": 78.35, "active": True},
+        {"id": 27, "name": "Chlorate", "method": "EPA 300.1", "water_type": "Non-Potable", "category": "INORGANICS", "method_group": "EPA 300.1 (IC Anions)", "standards": 1.25, "consumables": 1.72, "gases_utilities": 0.00, "labor": 8.94, "depreciation": 6.25, "subtotal": 18.16, "qc_oh": 3.63, "facility_oh": 6.36, "total_cost": 28.14, "price": 130.00, "margin_dollars": 101.86, "margin_percent": 78.35, "active": True},
+        {"id": 28, "name": "Fluoride", "method": "EPA 300.1", "water_type": "Potable", "category": "INORGANICS", "method_group": "EPA 300.1 (IC Anions)", "standards": 1.25, "consumables": 1.72, "gases_utilities": 0.00, "labor": 8.94, "depreciation": 6.25, "subtotal": 18.16, "qc_oh": 3.63, "facility_oh": 6.36, "total_cost": 28.14, "price": 80.00, "margin_dollars": 51.86, "margin_percent": 64.82, "active": True},
+        {"id": 29, "name": "Fluoride", "method": "EPA 300.1", "water_type": "Non-Potable", "category": "INORGANICS", "method_group": "EPA 300.1 (IC Anions)", "standards": 1.25, "consumables": 1.72, "gases_utilities": 0.00, "labor": 8.94, "depreciation": 6.25, "subtotal": 18.16, "qc_oh": 3.63, "facility_oh": 6.36, "total_cost": 28.14, "price": 80.00, "margin_dollars": 51.86, "margin_percent": 64.82, "active": True},
+        {"id": 30, "name": "Nitrate", "method": "EPA 300.1", "water_type": "Potable", "category": "INORGANICS", "method_group": "EPA 300.1 (IC Anions)", "standards": 1.25, "consumables": 1.72, "gases_utilities": 0.00, "labor": 8.94, "depreciation": 6.25, "subtotal": 18.16, "qc_oh": 3.63, "facility_oh": 6.36, "total_cost": 28.14, "price": 80.00, "margin_dollars": 51.86, "margin_percent": 64.82, "active": True},
+        {"id": 31, "name": "Nitrate", "method": "EPA 300.1", "water_type": "Non-Potable", "category": "INORGANICS", "method_group": "EPA 300.1 (IC Anions)", "standards": 1.25, "consumables": 1.72, "gases_utilities": 0.00, "labor": 8.94, "depreciation": 6.25, "subtotal": 18.16, "qc_oh": 3.63, "facility_oh": 6.36, "total_cost": 28.14, "price": 80.00, "margin_dollars": 51.86, "margin_percent": 64.82, "active": True},
+        {"id": 32, "name": "Nitrite", "method": "EPA 300.1", "water_type": "Potable", "category": "INORGANICS", "method_group": "EPA 300.1 (IC Anions)", "standards": 1.25, "consumables": 1.72, "gases_utilities": 0.00, "labor": 8.94, "depreciation": 6.25, "subtotal": 18.16, "qc_oh": 3.63, "facility_oh": 6.36, "total_cost": 28.14, "price": 80.00, "margin_dollars": 51.86, "margin_percent": 64.82, "active": True},
+        {"id": 33, "name": "Nitrite", "method": "EPA 300.1", "water_type": "Non-Potable", "category": "INORGANICS", "method_group": "EPA 300.1 (IC Anions)", "standards": 1.25, "consumables": 1.72, "gases_utilities": 0.00, "labor": 8.94, "depreciation": 6.25, "subtotal": 18.16, "qc_oh": 3.63, "facility_oh": 6.36, "total_cost": 28.14, "price": 80.00, "margin_dollars": 51.86, "margin_percent": 64.82, "active": True},
+        {"id": 34, "name": "Phosphate, Ortho", "method": "EPA 300.1", "water_type": "Potable", "category": "INORGANICS", "method_group": "EPA 300.1 (IC Anions)", "standards": 1.25, "consumables": 1.72, "gases_utilities": 0.00, "labor": 8.94, "depreciation": 6.25, "subtotal": 18.16, "qc_oh": 3.63, "facility_oh": 6.36, "total_cost": 28.14, "price": 80.00, "margin_dollars": 51.86, "margin_percent": 64.82, "active": True},
+        {"id": 35, "name": "Phosphate, Ortho", "method": "EPA 300.1", "water_type": "Non-Potable", "category": "INORGANICS", "method_group": "EPA 300.1 (IC Anions)", "standards": 1.25, "consumables": 1.72, "gases_utilities": 0.00, "labor": 8.94, "depreciation": 6.25, "subtotal": 18.16, "qc_oh": 3.63, "facility_oh": 6.36, "total_cost": 28.14, "price": 80.00, "margin_dollars": 51.86, "margin_percent": 64.82, "active": True},
+        {"id": 36, "name": "Sulfate", "method": "EPA 300.1", "water_type": "Potable", "category": "INORGANICS", "method_group": "EPA 300.1 (IC Anions)", "standards": 1.25, "consumables": 1.72, "gases_utilities": 0.00, "labor": 8.94, "depreciation": 6.25, "subtotal": 18.16, "qc_oh": 3.63, "facility_oh": 6.36, "total_cost": 28.14, "price": 80.00, "margin_dollars": 51.86, "margin_percent": 64.82, "active": True},
+        {"id": 37, "name": "Sulfate", "method": "EPA 300.1", "water_type": "Non-Potable", "category": "INORGANICS", "method_group": "EPA 300.1 (IC Anions)", "standards": 1.25, "consumables": 1.72, "gases_utilities": 0.00, "labor": 8.94, "depreciation": 6.25, "subtotal": 18.16, "qc_oh": 3.63, "facility_oh": 6.36, "total_cost": 28.14, "price": 80.00, "margin_dollars": 51.86, "margin_percent": 64.82, "active": True},
+        {"id": 38, "name": "Perchlorate", "method": "EPA 314.2", "water_type": "Potable", "category": "INORGANICS", "method_group": "IC-MS Perchlorate", "standards": 2.40, "consumables": 6.20, "gases_utilities": 0.00, "labor": 14.44, "depreciation": 14.29, "subtotal": 37.32, "qc_oh": 7.46, "facility_oh": 13.06, "total_cost": 57.85, "price": 350.00, "margin_dollars": 292.15, "margin_percent": 83.47, "active": True},
+        {"id": 39, "name": "Perchlorate", "method": "EPA 314.0", "water_type": "Non-Potable", "category": "INORGANICS", "method_group": "IC-MS Perchlorate", "standards": 2.40, "consumables": 6.20, "gases_utilities": 0.00, "labor": 14.44, "depreciation": 14.29, "subtotal": 37.32, "qc_oh": 7.46, "facility_oh": 13.06, "total_cost": 57.85, "price": 350.00, "margin_dollars": 292.15, "margin_percent": 83.47, "active": True},
+        {"id": 40, "name": "Cyanide, Total", "method": "SM 4500-CN E", "water_type": "Potable", "category": "INORGANICS", "method_group": "Distillation (Cyanide/Sulfide)", "standards": 0.00, "consumables": 5.50, "gases_utilities": 0.00, "labor": 25.52, "depreciation": 1.00, "subtotal": 32.02, "qc_oh": 6.40, "facility_oh": 11.21, "total_cost": 49.63, "price": 160.00, "margin_dollars": 110.37, "margin_percent": 68.98, "active": True},
+        {"id": 41, "name": "Cyanide, Total", "method": "SW-846 9012B", "water_type": "Non-Potable", "category": "INORGANICS", "method_group": "Distillation (Cyanide/Sulfide)", "standards": 0.00, "consumables": 5.50, "gases_utilities": 0.00, "labor": 25.52, "depreciation": 1.00, "subtotal": 32.02, "qc_oh": 6.40, "facility_oh": 11.21, "total_cost": 49.63, "price": 160.00, "margin_dollars": 110.37, "margin_percent": 68.98, "active": True},
+        {"id": 42, "name": "Cyanide, Available", "method": "SM 4500-CN I", "water_type": "Non-Potable", "category": "INORGANICS", "method_group": "Distillation (Cyanide/Sulfide)", "standards": 0.00, "consumables": 5.50, "gases_utilities": 0.00, "labor": 25.52, "depreciation": 1.00, "subtotal": 32.02, "qc_oh": 6.40, "facility_oh": 11.21, "total_cost": 49.63, "price": 210.00, "margin_dollars": 160.37, "margin_percent": 76.37, "active": True},
         
         # NUTRIENTS
-        {"id": 25, "name": "Ammonia (as N)", "method": "EPA 350.1", "technology": "Spectrophotometric", "category": "Nutrients", "subcategory": "Nitrogen Forms", "price": 110.00, "sku": "LAB-102.06-001-EPA350.1", "active": True, "pricing_type": "standard", "water_type": "Potable", "total_cost": 33.33, "margin_percent": 69.70},
-        {"id": 26, "name": "Kjeldahl Nitrogen, Total (TKN)", "method": "EPA 351.2", "technology": "Spectrophotometric", "category": "Nutrients", "subcategory": "Nitrogen Forms", "price": 130.00, "sku": "LAB-102.06-002-EPA351.2", "active": True, "pricing_type": "standard", "water_type": "Potable", "total_cost": 33.33, "margin_percent": 74.37},
-        {"id": 27, "name": "Phosphorus, Total", "method": "EPA 365.1", "technology": "Spectrophotometric", "category": "Nutrients", "subcategory": "Phosphorus Forms", "price": 120.00, "sku": "LAB-102.07-001-EPA365.1", "active": True, "pricing_type": "standard", "water_type": "Potable", "total_cost": 33.33, "margin_percent": 72.23},
+        {"id": 43, "name": "Ammonia (as N)", "method": "EPA 350.1", "water_type": "Potable", "category": "NUTRIENTS", "method_group": "Spectrophotometry - Nutrients", "standards": 0.00, "consumables": 3.75, "gases_utilities": 0.00, "labor": 16.50, "depreciation": 1.25, "subtotal": 21.50, "qc_oh": 4.30, "facility_oh": 7.53, "total_cost": 33.33, "price": 110.00, "margin_dollars": 76.68, "margin_percent": 69.70, "active": True},
+        {"id": 44, "name": "Ammonia (as N)", "method": "EPA 350.1", "water_type": "Non-Potable", "category": "NUTRIENTS", "method_group": "Spectrophotometry - Nutrients", "standards": 0.00, "consumables": 3.75, "gases_utilities": 0.00, "labor": 16.50, "depreciation": 1.25, "subtotal": 21.50, "qc_oh": 4.30, "facility_oh": 7.53, "total_cost": 33.33, "price": 110.00, "margin_dollars": 76.68, "margin_percent": 69.70, "active": True},
+        {"id": 45, "name": "Kjeldahl Nitrogen, Total", "method": "EPA 351.2", "water_type": "Potable", "category": "NUTRIENTS", "method_group": "Spectrophotometry - Nutrients", "standards": 0.00, "consumables": 3.75, "gases_utilities": 0.00, "labor": 16.50, "depreciation": 1.25, "subtotal": 21.50, "qc_oh": 4.30, "facility_oh": 7.53, "total_cost": 33.33, "price": 130.00, "margin_dollars": 96.68, "margin_percent": 74.37, "active": True},
+        {"id": 46, "name": "Kjeldahl Nitrogen, Total", "method": "EPA 351.2", "water_type": "Non-Potable", "category": "NUTRIENTS", "method_group": "Spectrophotometry - Nutrients", "standards": 0.00, "consumables": 3.75, "gases_utilities": 0.00, "labor": 16.50, "depreciation": 1.25, "subtotal": 21.50, "qc_oh": 4.30, "facility_oh": 7.53, "total_cost": 33.33, "price": 130.00, "margin_dollars": 96.68, "margin_percent": 74.37, "active": True},
+        {"id": 47, "name": "Phosphorus, Total", "method": "EPA 365.1", "water_type": "Potable", "category": "NUTRIENTS", "method_group": "Spectrophotometry - Nutrients", "standards": 0.00, "consumables": 3.75, "gases_utilities": 0.00, "labor": 16.50, "depreciation": 1.25, "subtotal": 21.50, "qc_oh": 4.30, "facility_oh": 7.53, "total_cost": 33.33, "price": 120.00, "margin_dollars": 86.68, "margin_percent": 72.23, "active": True},
+        {"id": 48, "name": "Phosphorus, Total", "method": "EPA 365.1", "water_type": "Non-Potable", "category": "NUTRIENTS", "method_group": "Spectrophotometry - Nutrients", "standards": 0.00, "consumables": 3.75, "gases_utilities": 0.00, "labor": 16.50, "depreciation": 1.25, "subtotal": 21.50, "qc_oh": 4.30, "facility_oh": 7.53, "total_cost": 33.33, "price": 120.00, "margin_dollars": 86.68, "margin_percent": 72.23, "active": True},
+        {"id": 49, "name": "Sulfide (as S)", "method": "SM 4500-S2 D", "water_type": "Non-Potable", "category": "NUTRIENTS", "method_group": "Distillation (Cyanide/Sulfide)", "standards": 0.00, "consumables": 5.50, "gases_utilities": 0.00, "labor": 25.52, "depreciation": 1.00, "subtotal": 32.02, "qc_oh": 6.40, "facility_oh": 11.21, "total_cost": 49.63, "price": 200.00, "margin_dollars": 150.37, "margin_percent": 75.18, "active": True},
+        {"id": 50, "name": "Sulfite (as SO3)", "method": "SM 4500-SO3", "water_type": "Potable", "category": "NUTRIENTS", "method_group": "Specialized Colorimetry", "standards": 0.00, "consumables": 3.00, "gases_utilities": 0.00, "labor": 37.46, "depreciation": 0.90, "subtotal": 41.36, "qc_oh": 8.27, "facility_oh": 14.47, "total_cost": 64.10, "price": 120.00, "margin_dollars": 55.90, "margin_percent": 46.58, "active": True},
+        {"id": 51, "name": "Sulfite (as SO3)", "method": "SM 4500-SO3", "water_type": "Non-Potable", "category": "NUTRIENTS", "method_group": "Specialized Colorimetry", "standards": 0.00, "consumables": 3.00, "gases_utilities": 0.00, "labor": 37.46, "depreciation": 0.90, "subtotal": 41.36, "qc_oh": 8.27, "facility_oh": 14.47, "total_cost": 64.10, "price": 120.00, "margin_dollars": 55.90, "margin_percent": 46.58, "active": True},
+        
+        # ORGANICS
+        {"id": 52, "name": "Surfactants (MBAS)", "method": "SM 5540 C", "water_type": "Potable", "category": "ORGANICS", "method_group": "Specialized Colorimetry", "standards": 0.00, "consumables": 3.00, "gases_utilities": 0.00, "labor": 37.46, "depreciation": 0.90, "subtotal": 41.36, "qc_oh": 8.27, "facility_oh": 14.47, "total_cost": 64.10, "price": 280.00, "margin_dollars": 215.90, "margin_percent": 77.11, "active": True},
+        {"id": 53, "name": "Surfactants (MBAS)", "method": "SM 5540 C", "water_type": "Non-Potable", "category": "ORGANICS", "method_group": "Specialized Colorimetry", "standards": 0.00, "consumables": 3.00, "gases_utilities": 0.00, "labor": 37.46, "depreciation": 0.90, "subtotal": 41.36, "qc_oh": 8.27, "facility_oh": 14.47, "total_cost": 64.10, "price": 280.00, "margin_dollars": 215.90, "margin_percent": 77.11, "active": True},
+        {"id": 54, "name": "Dissolved Organic Carbon", "method": "EPA 415.3", "water_type": "Potable", "category": "ORGANICS", "method_group": "Spectrophotometry - Nutrients", "standards": 0.00, "consumables": 3.75, "gases_utilities": 0.00, "labor": 16.50, "depreciation": 1.25, "subtotal": 21.50, "qc_oh": 4.30, "facility_oh": 7.53, "total_cost": 33.33, "price": 130.00, "margin_dollars": 96.68, "margin_percent": 74.37, "active": True},
+        {"id": 55, "name": "Dissolved Organic Carbon", "method": "EPA 415.3", "water_type": "Non-Potable", "category": "ORGANICS", "method_group": "Spectrophotometry - Nutrients", "standards": 0.00, "consumables": 3.75, "gases_utilities": 0.00, "labor": 16.50, "depreciation": 1.25, "subtotal": 21.50, "qc_oh": 4.30, "facility_oh": 7.53, "total_cost": 33.33, "price": 130.00, "margin_dollars": 96.68, "margin_percent": 74.37, "active": True},
+        {"id": 56, "name": "Total Organic Carbon", "method": "EPA 415.3", "water_type": "Potable", "category": "ORGANICS", "method_group": "Spectrophotometry - Nutrients", "standards": 0.00, "consumables": 3.75, "gases_utilities": 0.00, "labor": 16.50, "depreciation": 1.25, "subtotal": 21.50, "qc_oh": 4.30, "facility_oh": 7.53, "total_cost": 33.33, "price": 160.00, "margin_dollars": 126.68, "margin_percent": 79.17, "active": True},
+        {"id": 57, "name": "Total Organic Carbon", "method": "EPA 415.1", "water_type": "Non-Potable", "category": "ORGANICS", "method_group": "Spectrophotometry - Nutrients", "standards": 0.00, "consumables": 3.75, "gases_utilities": 0.00, "labor": 16.50, "depreciation": 1.25, "subtotal": 21.50, "qc_oh": 4.30, "facility_oh": 7.53, "total_cost": 33.33, "price": 160.00, "margin_dollars": 126.68, "margin_percent": 79.17, "active": True},
         
         # DISINFECTION PARAMETERS
-        {"id": 28, "name": "Chlorine, Free", "method": "SM 4500-Cl G", "technology": "Spectrophotometric DPD", "category": "Disinfection Parameters", "subcategory": "Chlorine", "price": 35.00, "sku": "LAB-102.175-001-SM4500-ClG-2000", "active": True, "pricing_type": "standard", "water_type": "Potable", "total_cost": 24.38, "margin_percent": 30.33},
-        {"id": 29, "name": "Chlorine, Total", "method": "SM 4500-Cl G", "technology": "Spectrophotometric DPD", "category": "Disinfection Parameters", "subcategory": "Chlorine", "price": 35.00, "sku": "LAB-102.175-002-SM4500-ClG-2000", "active": True, "pricing_type": "standard", "water_type": "Potable", "total_cost": 24.38, "margin_percent": 30.33},
-        {"id": 30, "name": "Chlorine, Combined", "method": "SM 4500-Cl D", "technology": "Titrimetric", "category": "Disinfection Parameters", "subcategory": "Chlorine", "price": 55.00, "sku": "LAB-102.172-001-SM4500-ClD-2000", "active": True, "pricing_type": "standard", "water_type": "Potable", "total_cost": 24.38, "margin_percent": 55.67},
+        {"id": 58, "name": "Chlorine, Free", "method": "SM 4500-Cl G", "water_type": "Potable", "category": "DISINFECTION PARAMETERS", "method_group": "Chlorine Methods (DPD)", "standards": 0.00, "consumables": 1.50, "gases_utilities": 0.00, "labor": 14.05, "depreciation": 0.18, "subtotal": 15.73, "qc_oh": 3.15, "facility_oh": 5.51, "total_cost": 24.38, "price": 35.00, "margin_dollars": 10.62, "margin_percent": 30.33, "active": True},
+        {"id": 59, "name": "Chlorine, Total - DPD", "method": "SM 4500-Cl F", "water_type": "Potable", "category": "DISINFECTION PARAMETERS", "method_group": "Chlorine Methods (DPD)", "standards": 0.00, "consumables": 1.50, "gases_utilities": 0.00, "labor": 14.05, "depreciation": 0.18, "subtotal": 15.73, "qc_oh": 3.15, "facility_oh": 5.51, "total_cost": 24.38, "price": 35.00, "margin_dollars": 10.62, "margin_percent": 30.33, "active": True},
+        {"id": 60, "name": "Chlorine, Total - DPD", "method": "SM 4500-Cl F", "water_type": "Non-Potable", "category": "DISINFECTION PARAMETERS", "method_group": "Chlorine Methods (DPD)", "standards": 0.00, "consumables": 1.50, "gases_utilities": 0.00, "labor": 14.05, "depreciation": 0.18, "subtotal": 15.73, "qc_oh": 3.15, "facility_oh": 5.51, "total_cost": 24.38, "price": 35.00, "margin_dollars": 10.62, "margin_percent": 30.33, "active": True},
         
-        # INORGANICS - Specialty
-        {"id": 31, "name": "Cyanide, Total", "method": "SM 4500-CN E", "technology": "Spectrophotometric", "category": "Inorganics", "subcategory": "Specialty", "price": 160.00, "sku": "LAB-108.124-001-SM4500-CN-E-2016", "active": True, "pricing_type": "standard", "water_type": "Potable", "total_cost": 49.63, "margin_percent": 68.98},
-        {"id": 32, "name": "Cyanide, Available", "method": "SM 4500-CN I", "technology": "Spectrophotometric", "category": "Inorganics", "subcategory": "Specialty", "price": 210.00, "sku": "LAB-108.128-001-SM4500-CN-G-2016", "active": True, "pricing_type": "standard", "water_type": "Non-Potable", "total_cost": 49.63, "margin_percent": 76.37},
-        {"id": 33, "name": "Sulfide (as S)", "method": "SM 4500-S2 D", "technology": "Colorimetric", "category": "Nutrients", "subcategory": "Sulfur Forms", "price": 200.00, "sku": "LAB-108.201-001-SM4500-S2-D-2011", "active": True, "pricing_type": "standard", "water_type": "Non-Potable", "total_cost": 49.63, "margin_percent": 75.18},
-        {"id": 34, "name": "Sulfite (as SO3)", "method": "SM 4500-SO3", "technology": "Colorimetric", "category": "Nutrients", "subcategory": "Sulfur Forms", "price": 120.00, "sku": "LAB-108.189-001-SM4500-SO32-B-2011", "active": True, "pricing_type": "standard", "water_type": "Potable", "total_cost": 64.10, "margin_percent": 46.58},
-        {"id": 35, "name": "Surfactants (MBAS)", "method": "SM 5540 C", "technology": "Colorimetric", "category": "Organics", "subcategory": "Surfactants", "price": 280.00, "sku": "LAB-102.27-001-SM5540C-2000", "active": True, "pricing_type": "standard", "water_type": "Potable", "total_cost": 64.10, "margin_percent": 77.11},
+        # METALS - Titrimetric/Calculation (not tiered)
+        {"id": 61, "name": "Calcium - Total", "method": "SM 3500-Ca B", "water_type": "Potable", "category": "METALS", "method_group": "Titrimetry (Alkalinity/Hardness)", "standards": 0.00, "consumables": 1.80, "gases_utilities": 0.00, "labor": 13.06, "depreciation": 0.75, "subtotal": 15.61, "qc_oh": 3.12, "facility_oh": 5.46, "total_cost": 24.20, "price": 70.00, "margin_dollars": 45.80, "margin_percent": 65.43, "active": True, "pricing_type": "standard"},
+        {"id": 62, "name": "Magnesium - Total", "method": "SM 3500-Mg B", "water_type": "Potable", "category": "METALS", "method_group": "Titrimetry (Alkalinity/Hardness)", "standards": 0.00, "consumables": 1.80, "gases_utilities": 0.00, "labor": 13.06, "depreciation": 0.75, "subtotal": 15.61, "qc_oh": 3.12, "facility_oh": 5.46, "total_cost": 24.20, "price": 70.00, "margin_dollars": 45.80, "margin_percent": 65.43, "active": True, "pricing_type": "standard"},
+        {"id": 63, "name": "Chromium (VI)", "method": "EPA 218.6", "water_type": "Potable", "category": "METALS", "method_group": "Chromium(VI) IC-Postcolumn", "standards": 1.42, "consumables": 3.50, "gases_utilities": 0.00, "labor": 11.00, "depreciation": 5.00, "subtotal": 20.92, "qc_oh": 4.18, "facility_oh": 7.32, "total_cost": 32.42, "price": 230.00, "margin_dollars": 197.58, "margin_percent": 85.90, "active": True, "pricing_type": "standard"},
+        {"id": 64, "name": "Chromium (VI)", "method": "EPA 218.6", "water_type": "Non-Potable", "category": "METALS", "method_group": "Chromium(VI) IC-Postcolumn", "standards": 1.42, "consumables": 3.50, "gases_utilities": 0.00, "labor": 11.00, "depreciation": 5.00, "subtotal": 20.92, "qc_oh": 4.18, "facility_oh": 7.32, "total_cost": 32.42, "price": 230.00, "margin_dollars": 197.58, "margin_percent": 85.90, "active": True, "pricing_type": "standard"},
         
-        # METALS - EPA 200.8 (ICP-MS) - Potable Water
-        {"id": 36, "name": "Aluminum", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Primary Metals", "price": 70.00, "sku": "LAB-103.14-001-EPA200.8", "active": True, "pricing_type": "tiered", "additional_price": 12.00, "water_type": "Potable", "total_cost": 45.77, "margin_percent": 34.62},
-        {"id": 37, "name": "Antimony", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Primary Metals", "price": 70.00, "sku": "LAB-103.14-002-EPA200.8", "active": True, "pricing_type": "tiered", "additional_price": 12.00, "water_type": "Potable", "total_cost": 45.77, "margin_percent": 34.62},
-        {"id": 38, "name": "Arsenic", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Primary Metals", "price": 70.00, "sku": "LAB-103.14-003-EPA200.8", "active": True, "pricing_type": "tiered", "additional_price": 12.00, "water_type": "Potable", "total_cost": 45.77, "margin_percent": 34.62},
-        {"id": 39, "name": "Barium", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Primary Metals", "price": 70.00, "sku": "LAB-103.14-004-EPA200.8", "active": True, "pricing_type": "tiered", "additional_price": 12.00, "water_type": "Potable", "total_cost": 45.77, "margin_percent": 34.62},
-        {"id": 40, "name": "Beryllium", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Primary Metals", "price": 70.00, "sku": "LAB-103.14-005-EPA200.8", "active": True, "pricing_type": "tiered", "additional_price": 12.00, "water_type": "Potable", "total_cost": 45.77, "margin_percent": 34.62},
-        {"id": 41, "name": "Cadmium", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Primary Metals", "price": 70.00, "sku": "LAB-103.14-006-EPA200.8", "active": True, "pricing_type": "tiered", "additional_price": 12.00, "water_type": "Potable", "total_cost": 45.77, "margin_percent": 34.62},
-        {"id": 42, "name": "Chromium", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Primary Metals", "price": 70.00, "sku": "LAB-103.14-007-EPA200.8", "active": True, "pricing_type": "tiered", "additional_price": 12.00, "water_type": "Potable", "total_cost": 45.77, "margin_percent": 34.62},
-        {"id": 43, "name": "Chromium (VI)", "method": "EPA 218.6", "technology": "IC-Post Column", "category": "Metals", "subcategory": "Specialty Metals", "price": 230.00, "sku": "LAB-103.15-001-EPA218.6", "active": True, "pricing_type": "standard", "water_type": "Potable", "total_cost": 32.42, "margin_percent": 85.90},
-        {"id": 44, "name": "Copper", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Primary Metals", "price": 70.00, "sku": "LAB-103.14-008-EPA200.8", "active": True, "pricing_type": "tiered", "additional_price": 12.00, "water_type": "Potable", "total_cost": 45.77, "margin_percent": 34.62},
-        {"id": 45, "name": "Lead", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Primary Metals", "price": 85.00, "sku": "LAB-103.14-009-EPA200.8", "active": True, "pricing_type": "tiered", "additional_price": 12.00, "water_type": "Potable", "total_cost": 45.77, "margin_percent": 46.15},
-        {"id": 46, "name": "Manganese", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Primary Metals", "price": 70.00, "sku": "LAB-103.14-010-EPA200.8", "active": True, "pricing_type": "tiered", "additional_price": 12.00, "water_type": "Potable", "total_cost": 45.77, "margin_percent": 34.62},
-        {"id": 47, "name": "Mercury", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Primary Metals", "price": 85.00, "sku": "LAB-103.14-011-EPA200.8", "active": True, "pricing_type": "tiered", "additional_price": 12.00, "water_type": "Potable", "total_cost": 45.77, "margin_percent": 46.15},
-        {"id": 48, "name": "Nickel", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Primary Metals", "price": 70.00, "sku": "LAB-103.14-012-EPA200.8", "active": True, "pricing_type": "tiered", "additional_price": 12.00, "water_type": "Potable", "total_cost": 45.77, "margin_percent": 34.62},
-        {"id": 49, "name": "Selenium", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Primary Metals", "price": 70.00, "sku": "LAB-103.14-013-EPA200.8", "active": True, "pricing_type": "tiered", "additional_price": 12.00, "water_type": "Potable", "total_cost": 45.77, "margin_percent": 34.62},
-        {"id": 50, "name": "Silver", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Primary Metals", "price": 70.00, "sku": "LAB-103.14-014-EPA200.8", "active": True, "pricing_type": "tiered", "additional_price": 12.00, "water_type": "Potable", "total_cost": 45.77, "margin_percent": 34.62},
-        {"id": 51, "name": "Thallium", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Primary Metals", "price": 70.00, "sku": "LAB-103.14-015-EPA200.8", "active": True, "pricing_type": "tiered", "additional_price": 12.00, "water_type": "Potable", "total_cost": 45.77, "margin_percent": 34.62},
-        {"id": 52, "name": "Uranium", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Primary Metals", "price": 70.00, "sku": "LAB-103.14-016-EPA200.8", "active": True, "pricing_type": "tiered", "additional_price": 12.00, "water_type": "Potable", "total_cost": 45.77, "margin_percent": 34.62},
-        {"id": 53, "name": "Zinc", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Primary Metals", "price": 70.00, "sku": "LAB-103.14-017-EPA200.8", "active": True, "pricing_type": "tiered", "additional_price": 12.00, "water_type": "Potable", "total_cost": 45.77, "margin_percent": 34.62},
-        {"id": 54, "name": "Iron", "method": "EPA 200.8", "technology": "ICP-MS", "category": "Metals", "subcategory": "Secondary Metals", "price": 70.00, "sku": "LAB-103.14-018-EPA200.8", "active": True, "pricing_type": "tiered", "additional_price": 12.00, "water_type": "Potable", "total_cost": 45.77, "margin_percent": 34.62},
-        {"id": 55, "name": "Calcium - Total", "method": "SM 3500-Ca B", "technology": "Titrimetric", "category": "Metals", "subcategory": "Major Cations", "price": 70.00, "sku": "LAB-102.148-001-SM3500-CaB-1997", "active": True, "pricing_type": "standard", "water_type": "Potable", "total_cost": 24.20, "margin_percent": 65.43},
-        {"id": 56, "name": "Magnesium - Total", "method": "SM 3500-Mg B", "technology": "Calculation", "category": "Metals", "subcategory": "Major Cations", "price": 70.00, "sku": "LAB-102.149-001-SM3500-MgB-1997", "active": True, "pricing_type": "standard", "water_type": "Potable", "total_cost": 24.20, "margin_percent": 65.43},
-        {"id": 57, "name": "Cation Panel (Ca, Mg, Na, K)", "method": "SM 3125 B", "technology": "ICP-MS", "category": "Metals", "subcategory": "Panels", "price": 300.00, "sku": "LAB-108.226-001-SM3125B", "active": True, "pricing_type": "standard", "water_type": "Potable", "total_cost": 92.00, "margin_percent": 69.33},
+        # METALS - EPA 200.8 ICP-MS (POTABLE) - TIERED PRICING: $70 first metal, $12 each additional
+        # Available metals: Aluminum, Antimony, Arsenic, Barium, Beryllium, Cadmium, Chromium, Cobalt, Copper, Lead, Manganese, Mercury, Molybdenum, Nickel, Selenium, Silver, Thallium, Thorium, Uranium, Vanadium, Zinc
+        {"id": 65, "name": "Metals Panel - EPA 200.8 (Potable)", "method": "EPA 200.8", "water_type": "Potable", "category": "METALS", "method_group": "EPA 200.8 / EPA 6020B (ICP-MS)", "standards": 2.03, "consumables": 1.20, "gases_utilities": 0.90, "labor": 10.81, "depreciation": 14.58, "subtotal": 29.53, "qc_oh": 5.91, "facility_oh": 10.33, "total_cost": 45.77, "price": 70.00, "margin_dollars": 24.23, "margin_percent": 34.62, "active": True, "pricing_type": "tiered", "first_metal_price": 70.00, "additional_metal_price": 12.00, "available_metals": "Aluminum, Antimony, Arsenic, Barium, Beryllium, Cadmium, Chromium, Cobalt, Copper, Lead, Manganese, Mercury, Molybdenum, Nickel, Selenium, Silver, Thallium, Thorium, Uranium, Vanadium, Zinc"},
         
-        # METALS - EPA 6020B (ICP-MS) - Non-Potable Water
-        {"id": 58, "name": "First Metal (EPA 6020B)", "method": "EPA 6020B", "technology": "ICP-MS", "category": "Metals", "subcategory": "Non-Potable", "price": 130.00, "sku": "LAB-130.04-001-EPA6020B", "active": True, "pricing_type": "tiered", "additional_price": 45.00, "water_type": "Non-Potable", "total_cost": 45.77, "margin_percent": 64.79},
-        {"id": 59, "name": "RCRA 8 Metals Panel", "method": "EPA 6020B", "technology": "ICP-MS", "category": "Metals", "subcategory": "Panels", "price": 540.00, "sku": "LAB-130.04-002-EPA6020B", "active": True, "pricing_type": "standard", "water_type": "Non-Potable", "total_cost": 45.77, "margin_percent": 91.52},
+        # METALS - EPA 6020B ICP-MS (NON-POTABLE) - TIERED PRICING: $130 first metal, $45 each additional
+        # Available metals: Aluminum, Antimony, Arsenic, Barium, Beryllium, Boron, Cadmium, Calcium, Chromium, Cobalt, Copper, Iron, Lead, Magnesium, Manganese, Mercury, Nickel, Potassium, Selenium, Silicon, Silver, Sodium, Thallium, Vanadium, Uranium, Zinc
+        {"id": 66, "name": "Metals Panel - EPA 6020B (Non-Potable)", "method": "EPA 6020B", "water_type": "Non-Potable", "category": "METALS", "method_group": "EPA 200.8 / EPA 6020B (ICP-MS)", "standards": 2.03, "consumables": 1.20, "gases_utilities": 0.90, "labor": 10.81, "depreciation": 14.58, "subtotal": 29.53, "qc_oh": 5.91, "facility_oh": 10.33, "total_cost": 45.77, "price": 130.00, "margin_dollars": 84.23, "margin_percent": 64.79, "active": True, "pricing_type": "tiered", "first_metal_price": 130.00, "additional_metal_price": 45.00, "available_metals": "Aluminum, Antimony, Arsenic, Barium, Beryllium, Boron, Cadmium, Calcium, Chromium, Cobalt, Copper, Iron, Lead, Magnesium, Manganese, Mercury, Nickel, Potassium, Selenium, Silicon, Silver, Sodium, Thallium, Vanadium, Uranium, Zinc"},
+        
+        # METALS - RCRA 8 Metals Panel (Non-Potable)
+        {"id": 67, "name": "RCRA 8 Metals Panel", "method": "EPA 6020B", "water_type": "Non-Potable", "category": "METALS", "method_group": "EPA 200.8 / EPA 6020B (ICP-MS)", "standards": 2.03, "consumables": 1.20, "gases_utilities": 0.90, "labor": 10.81, "depreciation": 14.58, "subtotal": 29.53, "qc_oh": 5.91, "facility_oh": 10.33, "total_cost": 45.77, "price": 540.00, "margin_dollars": 494.23, "margin_percent": 91.52, "active": True, "pricing_type": "panel", "included_metals": "Ag, As, Ba, Cd, Cr, Hg, Pb, Se"},
         
         # PFAS Testing
-        {"id": 60, "name": "PFAS 3-Compound (PFNA, PFOA, PFOS)", "method": "EPA 537.1", "technology": "LC-MS/MS", "category": "PFAS Testing", "subcategory": "Basic PFAS", "price": 425.00, "sku": "LAB-111.265-003-EPA537.1", "active": True, "pricing_type": "standard", "water_type": "Potable", "total_cost": 144.51, "margin_percent": 66.00},
-        {"id": 61, "name": "PFAS 14-Compound Panel", "method": "EPA 537.1", "technology": "LC-MS/MS", "category": "PFAS Testing", "subcategory": "Standard PFAS", "price": 595.00, "sku": "LAB-111.265-004-EPA537.1", "active": True, "pricing_type": "standard", "water_type": "Potable", "total_cost": 144.51, "margin_percent": 75.71},
-        {"id": 62, "name": "PFAS 18-Compound Panel", "method": "EPA 537.1", "technology": "LC-MS/MS", "category": "PFAS Testing", "subcategory": "Comprehensive PFAS", "price": 625.00, "sku": "LAB-111.265-002-EPA537.1", "active": True, "pricing_type": "standard", "water_type": "Potable", "total_cost": 144.51, "margin_percent": 76.88},
-        {"id": 63, "name": "PFAS 25-Compound Panel (EPA 533)", "method": "EPA 533", "technology": "LC-MS/MS", "category": "PFAS Testing", "subcategory": "Extended PFAS", "price": 800.00, "sku": "LAB-111.265-001-EPA533", "active": True, "pricing_type": "standard", "water_type": "Potable", "total_cost": 144.51, "margin_percent": 81.94},
-        {"id": 64, "name": "PFAS 40-Compound Panel (EPA 1633)", "method": "EPA 1633", "technology": "LC-MS/MS", "category": "PFAS Testing", "subcategory": "Complete PFAS", "price": 1190.00, "sku": "LAB-111.265-005-EPA1633", "active": True, "pricing_type": "standard", "water_type": "Non-Potable", "total_cost": 260.10, "margin_percent": 78.14},
-        {"id": 65, "name": "PFAS 18-Compound (Non-Potable)", "method": "EPA 1633", "technology": "LC-MS/MS", "category": "PFAS Testing", "subcategory": "Non-Potable PFAS", "price": 625.00, "sku": "LAB-111.265-006-EPA1633", "active": True, "pricing_type": "standard", "water_type": "Non-Potable", "total_cost": 144.51, "margin_percent": 76.88},
+        {"id": 68, "name": "PFAS 3-Compound (PFNA, PFOA, PFOS)", "method": "EPA 537.1", "water_type": "Potable", "category": "PFAS TESTING", "method_group": "EPA 537/1633A (PFAS LC-MS/MS)", "standards": 25.00, "consumables": 18.95, "gases_utilities": 0.63, "labor": 23.65, "depreciation": 25.00, "subtotal": 93.23, "qc_oh": 18.65, "facility_oh": 32.63, "total_cost": 144.51, "price": 425.00, "margin_dollars": 280.49, "margin_percent": 66.00, "active": True},
+        {"id": 69, "name": "PFAS 3-Compound (PFNA, PFOA, PFOS)", "method": "EPA 1633", "water_type": "Non-Potable", "category": "PFAS TESTING", "method_group": "EPA 537/1633A (PFAS LC-MS/MS)", "standards": 25.00, "consumables": 18.95, "gases_utilities": 0.63, "labor": 23.65, "depreciation": 25.00, "subtotal": 93.23, "qc_oh": 18.65, "facility_oh": 32.63, "total_cost": 144.51, "price": 425.00, "margin_dollars": 280.49, "margin_percent": 66.00, "active": True},
+        {"id": 70, "name": "PFAS 14-Compound", "method": "EPA 537.1", "water_type": "Potable", "category": "PFAS TESTING", "method_group": "EPA 537/1633A (PFAS LC-MS/MS)", "standards": 25.00, "consumables": 18.95, "gases_utilities": 0.63, "labor": 23.65, "depreciation": 25.00, "subtotal": 93.23, "qc_oh": 18.65, "facility_oh": 32.63, "total_cost": 144.51, "price": 595.00, "margin_dollars": 450.49, "margin_percent": 75.71, "active": True},
+        {"id": 71, "name": "PFAS 18-Compound", "method": "EPA 537.1", "water_type": "Potable", "category": "PFAS TESTING", "method_group": "EPA 537/1633A (PFAS LC-MS/MS)", "standards": 25.00, "consumables": 18.95, "gases_utilities": 0.63, "labor": 23.65, "depreciation": 25.00, "subtotal": 93.23, "qc_oh": 18.65, "facility_oh": 32.63, "total_cost": 144.51, "price": 625.00, "margin_dollars": 480.49, "margin_percent": 76.88, "active": True},
+        {"id": 72, "name": "PFAS 18-Compound", "method": "EPA 1633", "water_type": "Non-Potable", "category": "PFAS TESTING", "method_group": "EPA 537/1633A (PFAS LC-MS/MS)", "standards": 25.00, "consumables": 18.95, "gases_utilities": 0.63, "labor": 23.65, "depreciation": 25.00, "subtotal": 93.23, "qc_oh": 18.65, "facility_oh": 32.63, "total_cost": 144.51, "price": 625.00, "margin_dollars": 480.49, "margin_percent": 76.88, "active": True},
+        {"id": 73, "name": "PFAS 25-Compound", "method": "EPA 533", "water_type": "Potable", "category": "PFAS TESTING", "method_group": "EPA 537/1633A (PFAS LC-MS/MS)", "standards": 25.00, "consumables": 18.95, "gases_utilities": 0.63, "labor": 23.65, "depreciation": 25.00, "subtotal": 93.23, "qc_oh": 18.65, "facility_oh": 32.63, "total_cost": 144.51, "price": 710.00, "margin_dollars": 565.49, "margin_percent": 79.65, "active": True},
+        {"id": 74, "name": "PFAS 25-Compound", "method": "EPA 1633", "water_type": "Non-Potable", "category": "PFAS TESTING", "method_group": "EPA 537/1633A (PFAS LC-MS/MS)", "standards": 25.00, "consumables": 18.95, "gases_utilities": 0.63, "labor": 23.65, "depreciation": 25.00, "subtotal": 93.23, "qc_oh": 18.65, "facility_oh": 32.63, "total_cost": 144.51, "price": 710.00, "margin_dollars": 565.49, "margin_percent": 79.65, "active": True},
+        {"id": 75, "name": "PFAS 40-Compound", "method": "EPA 1633", "water_type": "Non-Potable", "category": "PFAS TESTING", "method_group": "EPA 537/1633A (PFAS LC-MS/MS)", "standards": 65.00, "consumables": 35.00, "gases_utilities": 0.63, "labor": 30.00, "depreciation": 25.00, "subtotal": 155.63, "qc_oh": 50.00, "facility_oh": 54.47, "total_cost": 260.10, "price": 1190.00, "margin_dollars": 929.90, "margin_percent": 78.14, "active": True},
     ])
 
-def get_default_test_kits():
-    """Return default test kits DataFrame"""
+def get_test_kits_data():
+    """Default test bundles"""
     return pd.DataFrame([
-        {
-            "id": 1,
-            "name": "Essential Home Water Kit",
-            "code": "RES-001",
-            "category": "Residential",
-            "description": "Basic water quality assessment for homeowners",
-            "analyte_ids": [4, 9, 16, 20, 45, 44, 54, 38],
-            "discount_percent": 18.0,
-            "active": True,
-            "created_date": "2025-01-01"
-        },
-        {
-            "id": 2,
-            "name": "Lead & Copper Compliance",
-            "code": "RES-002",
-            "category": "Residential",
-            "description": "EPA Lead and Copper Rule compliance testing",
-            "analyte_ids": [45, 44],
-            "discount_percent": 10.0,
-            "active": True,
-            "created_date": "2025-01-01"
-        },
-        {
-            "id": 3,
-            "name": "PFAS Screening Basic",
-            "code": "PFAS-001",
-            "category": "Specialty",
-            "description": "Basic PFAS screening (PFNA, PFOA, PFOS)",
-            "analyte_ids": [60],
-            "discount_percent": 5.0,
-            "active": True,
-            "created_date": "2025-01-01"
-        },
-        {
-            "id": 4,
-            "name": "Real Estate Transaction Panel",
-            "code": "RE-001",
-            "category": "Real Estate",
-            "description": "Comprehensive testing for property transactions",
-            "analyte_ids": [1, 4, 9, 16, 20, 19, 45, 44, 38, 42],
-            "discount_percent": 20.0,
-            "active": True,
-            "created_date": "2025-01-01"
-        },
-        {
-            "id": 5,
-            "name": "Potable Metals Full Panel",
-            "code": "MTL-001",
-            "category": "Commercial",
-            "description": "Complete EPA 200.8 metals analysis for drinking water",
-            "analyte_ids": [36, 37, 38, 39, 40, 41, 42, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54],
-            "discount_percent": 25.0,
-            "active": True,
-            "created_date": "2025-01-01"
-        },
+        {"id": 1, "name": "Essential Home Water Kit", "code": "RES-001", "category": "Residential", "description": "Basic water quality for homeowners", "analyte_ids": [12, 10, 22, 30, 28], "discount_percent": 15.0, "active": True},
+        {"id": 2, "name": "Real Estate Transaction Panel", "code": "RE-001", "category": "Real Estate", "description": "Comprehensive testing for property sales", "analyte_ids": [1, 5, 7, 9, 10, 12, 22, 30, 28, 36], "discount_percent": 20.0, "active": True},
+        {"id": 3, "name": "PFAS Screening (3-Compound)", "code": "PFAS-001", "category": "Specialty", "description": "Basic PFAS screening - PFNA, PFOA, PFOS", "analyte_ids": [68], "discount_percent": 5.0, "active": True},
+        {"id": 4, "name": "Wastewater Discharge Panel", "code": "WW-001", "category": "Commercial", "description": "Standard wastewater discharge monitoring", "analyte_ids": [2, 6, 8, 14, 15, 17, 44, 46, 48], "discount_percent": 18.0, "active": True},
     ])
+
+# ============================================================================
+# SESSION STATE INITIALIZATION
+# ============================================================================
 
 def init_session_state():
-    """Initialize session state with comprehensive data"""
-    
+    """Initialize all session state variables"""
     if 'analytes' not in st.session_state:
-        st.session_state.analytes = get_default_analytes()
-        
+        st.session_state.analytes = get_analytes_data()
+    
     if 'test_kits' not in st.session_state:
-        st.session_state.test_kits = get_default_test_kits()
+        st.session_state.test_kits = get_test_kits_data()
     
     if 'audit_log' not in st.session_state:
         st.session_state.audit_log = pd.DataFrame(columns=[
-            'timestamp', 'entity_type', 'entity_id', 'field', 'old_value', 
-            'new_value', 'action', 'user_name'
+            'timestamp', 'entity_type', 'entity_id', 'field', 
+            'old_value', 'new_value', 'action', 'user_name'
         ])
 
 # ============================================================================
 # HELPER FUNCTIONS
 # ============================================================================
 
-def safe_get(df, column, default=0):
-    """Safely get column from DataFrame with default"""
-    if column in df.columns:
-        return df[column]
-    return default
-
-def calculate_profit_margin(price: float, cost: float) -> float:
-    """Calculate profit margin percentage"""
-    if price <= 0:
-        return 0
-    return ((price - cost) / price) * 100
-
-def log_audit(entity_type: str, entity_id: str, field: str, old_value: str, 
-              new_value: str, action: str, user_name: str = "System"):
-    """Log audit trail entry"""
-    new_entry = pd.DataFrame([{
-        'timestamp': datetime.now().isoformat(),
-        'entity_type': entity_type,
-        'entity_id': entity_id,
-        'field': field,
-        'old_value': old_value,
-        'new_value': new_value,
-        'action': action,
-        'user_name': user_name
-    }])
-    st.session_state.audit_log = pd.concat([st.session_state.audit_log, new_entry], ignore_index=True)
-
-def calculate_kit_pricing(analyte_ids: List[int], discount_percent: float, 
-                          metal_counts: Dict = None) -> Dict:
-    """Calculate kit pricing based on selected analytes"""
-    if metal_counts is None:
-        metal_counts = {}
+def calculate_metals_price(num_metals: int, water_type: str) -> float:
+    """Calculate tiered metals pricing based on water type"""
+    if num_metals <= 0:
+        return 0.0
     
+    if water_type == "Potable":
+        # EPA 200.8: $70 first metal, $12 each additional
+        first_price = 70.00
+        additional_price = 12.00
+    else:
+        # EPA 6020B: $130 first metal, $45 each additional
+        first_price = 130.00
+        additional_price = 45.00
+    
+    return first_price + (additional_price * max(0, num_metals - 1))
+
+def calculate_kit_pricing(analyte_ids: List[int], discount_percent: float) -> Dict:
+    """Calculate kit pricing with proper handling"""
     if not analyte_ids:
-        return {
-            'individual_total': 0,
-            'kit_price': 0,
-            'savings': 0,
-            'test_count': 0,
-            'total_cost': 0,
-            'profit': 0,
-            'margin_percent': 0
-        }
+        return {'individual_total': 0, 'kit_price': 0, 'savings': 0, 'test_count': 0, 'total_cost': 0, 'margin_percent': 0}
     
-    selected_analytes = st.session_state.analytes[
-        st.session_state.analytes['id'].isin(analyte_ids) & 
-        st.session_state.analytes['active']
-    ]
+    # Handle if analyte_ids is a string
+    if isinstance(analyte_ids, str):
+        try:
+            analyte_ids = json.loads(analyte_ids)
+        except:
+            return {'individual_total': 0, 'kit_price': 0, 'savings': 0, 'test_count': 0, 'total_cost': 0, 'margin_percent': 0}
     
-    individual_total = 0
-    total_cost = 0
+    selected = st.session_state.analytes[st.session_state.analytes['id'].isin(analyte_ids) & st.session_state.analytes['active']]
     
-    for _, analyte in selected_analytes.iterrows():
-        # Handle tiered pricing for metals
-        if analyte.get('pricing_type') == 'tiered' and analyte['id'] in metal_counts:
-            metal_count = metal_counts[analyte['id']]
-            base_price = analyte['price']
-            additional_price = analyte.get('additional_price', 0)
-            total_price = base_price + (additional_price * max(0, metal_count - 1))
-            individual_total += total_price
-        else:
-            individual_total += analyte['price']
-        
-        # Add cost safely
-        total_cost += analyte.get('total_cost', 0) if pd.notna(analyte.get('total_cost')) else 0
-    
+    individual_total = selected['price'].sum()
+    total_cost = selected['total_cost'].sum()
     kit_price = individual_total * (1 - discount_percent / 100)
     savings = individual_total - kit_price
-    profit = kit_price - total_cost
-    margin = calculate_profit_margin(kit_price, total_cost) if total_cost > 0 else 0
+    margin = ((kit_price - total_cost) / kit_price * 100) if kit_price > 0 else 0
     
     return {
         'individual_total': individual_total,
         'kit_price': kit_price,
         'savings': savings,
-        'test_count': len(selected_analytes),
+        'test_count': len(selected),
         'total_cost': total_cost,
-        'profit': profit,
         'margin_percent': margin
     }
-
-def format_currency(value: float) -> str:
-    """Format value as currency"""
-    return f"${value:,.2f}"
 
 # ============================================================================
 # SIDEBAR
 # ============================================================================
 
 def render_sidebar():
-    """Render the sidebar with navigation and branding"""
-    
+    """Render sidebar with navigation"""
     st.sidebar.markdown("""
-    <div style="text-align: center; padding: 20px 0; margin-bottom: 20px;">
-        <div style="font-size: 28px; font-weight: 800; color: white; letter-spacing: 2px;">KELP</div>
-        <div style="font-size: 12px; color: #00B4D8; letter-spacing: 1px;">LABORATORY SERVICES</div>
+    <div style="text-align: center; padding: 20px 0;">
+        <div style="font-size: 32px; font-weight: 800; color: white; letter-spacing: 3px;">KELP</div>
+        <div style="font-size: 11px; color: #00B4D8; letter-spacing: 1px; margin-top: 5px;">LABORATORY SERVICES</div>
+        <div style="font-size: 10px; color: rgba(255,255,255,0.7); margin-top: 3px;">CA ELAP Certified</div>
     </div>
     """, unsafe_allow_html=True)
     
@@ -433,524 +334,43 @@ def render_sidebar():
     
     page = st.sidebar.radio(
         "Navigation",
-        [
-            "🏠 Dashboard",
-            "🧪 Test Catalog",
-            "📦 Bundle Builder",
-            "💰 Pricing Analysis",
-            "📝 Quote Generator",
-            "⚙️ Settings",
-        ],
-        index=0,
+        ["🏠 Dashboard", "🧪 Test Catalog", "💰 Cost Analysis", "📦 Bundle Builder", "🧮 Metals Calculator", "⚙️ Settings"],
         label_visibility="collapsed"
     )
     
     st.sidebar.markdown("---")
     
-    # Quick Stats
-    active_analytes = st.session_state.analytes[st.session_state.analytes['active']]
-    active_kits = st.session_state.test_kits[st.session_state.test_kits['active']]
-    
-    st.sidebar.markdown("### 📈 Quick Stats")
-    st.sidebar.markdown(f"**{len(active_analytes)}** Active Tests")
-    st.sidebar.markdown(f"**{len(active_kits)}** Test Bundles")
-    
-    avg_price = active_analytes['price'].mean() if not active_analytes.empty else 0
-    st.sidebar.markdown(f"**${avg_price:.2f}** Avg Test Price")
-    
-    st.sidebar.markdown("---")
-    
-    st.sidebar.markdown("""
-    <div style="text-align: center; color: rgba(255,255,255,0.6); font-size: 12px;">
-        <p>Version 2.1</p>
-        <p>CA ELAP Certified</p>
-        <p>© 2025 KELP Lab Services</p>
-    </div>
-    """, unsafe_allow_html=True)
+    # Quick stats
+    active = st.session_state.analytes[st.session_state.analytes['active']]
+    st.sidebar.markdown(f"**📊 {len(active)}** Active Tests")
+    st.sidebar.markdown(f"**💵 ${active['price'].mean():.2f}** Avg Price")
+    st.sidebar.markdown(f"**📈 {active['margin_percent'].mean():.1f}%** Avg Margin")
     
     return page.split(" ", 1)[1]
 
 # ============================================================================
-# PAGES
+# PAGE: DASHBOARD
 # ============================================================================
 
 def render_dashboard():
-    """Render the main dashboard page"""
-    
     st.title("🔬 KELP Price Management Dashboard")
-    st.markdown("*California ELAP Certified Laboratory Services*")
+    st.markdown("*California ELAP Certified Laboratory Services - 2025 Pricing*")
     
-    active_analytes = st.session_state.analytes[st.session_state.analytes['active']]
-    active_kits = st.session_state.test_kits[st.session_state.test_kits['active']]
+    active = st.session_state.analytes[st.session_state.analytes['active']]
     
-    # Key Metrics Row
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        st.metric("Total Tests Available", len(active_analytes))
-    
-    with col2:
-        st.metric("Active Bundles", len(active_kits))
-    
-    with col3:
-        avg_price = active_analytes['price'].mean() if not active_analytes.empty else 0
-        st.metric("Average Test Price", f"${avg_price:.2f}")
-    
-    with col4:
-        if 'margin_percent' in active_analytes.columns and not active_analytes.empty:
-            avg_margin = active_analytes['margin_percent'].mean()
-        else:
-            avg_margin = 0
-        st.metric("Average Margin", f"{avg_margin:.1f}%")
-    
-    st.markdown("---")
-    
-    # Category Overview
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.subheader("📊 Tests by Category")
-        
-        if not active_analytes.empty:
-            category_counts = active_analytes['category'].value_counts()
-            
-            fig = px.pie(
-                values=category_counts.values,
-                names=category_counts.index,
-                title="Distribution by Category",
-                color_discrete_sequence=px.colors.qualitative.Set3
-            )
-            fig.update_layout(
-                showlegend=True,
-                legend=dict(orientation="h", yanchor="bottom", y=-0.3),
-                margin=dict(t=50, b=0, l=0, r=0)
-            )
-            st.plotly_chart(fig, use_container_width=True)
-    
-    with col2:
-        st.subheader("💵 Category Pricing Summary")
-        
-        if not active_analytes.empty:
-            summary_data = []
-            for category in active_analytes['category'].unique():
-                cat_analytes = active_analytes[active_analytes['category'] == category]
-                
-                avg_margin = 0
-                if 'margin_percent' in cat_analytes.columns:
-                    avg_margin = cat_analytes['margin_percent'].mean()
-                
-                summary_data.append({
-                    'Category': category,
-                    'Tests': len(cat_analytes),
-                    'Avg Price': f"${cat_analytes['price'].mean():.2f}",
-                    'Price Range': f"${cat_analytes['price'].min():.0f} - ${cat_analytes['price'].max():.0f}",
-                    'Avg Margin': f"{avg_margin:.1f}%"
-                })
-            
-            df_summary = pd.DataFrame(summary_data)
-            st.dataframe(df_summary, use_container_width=True, hide_index=True)
-    
-    st.markdown("---")
-    
-    # Price Distribution Chart
-    st.subheader("📈 Price Distribution Analysis")
-    
-    if not active_analytes.empty:
-        fig = px.histogram(
-            active_analytes,
-            x='price',
-            color='category',
-            nbins=20,
-            title="Test Price Distribution by Category",
-            labels={'price': 'Price ($)', 'count': 'Number of Tests'},
-            color_discrete_sequence=px.colors.qualitative.Set2
-        )
-        fig.update_layout(
-            bargap=0.1,
-            showlegend=True,
-            legend=dict(orientation="h", yanchor="bottom", y=-0.3)
-        )
-        st.plotly_chart(fig, use_container_width=True)
-    
-    # Quick Actions
-    st.subheader("🚀 Quick Actions")
-    
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        st.button("📦 Create New Bundle", use_container_width=True)
-    
-    with col2:
-        st.button("📝 Generate Quote", use_container_width=True)
-    
-    with col3:
-        st.button("📊 View Pricing", use_container_width=True)
-    
-    with col4:
-        csv = active_analytes.to_csv(index=False)
-        st.download_button(
-            "📥 Export Catalog",
-            csv,
-            "kelp_test_catalog.csv",
-            "text/csv",
-            use_container_width=True
-        )
-
-
-def render_test_catalog():
-    """Render the test catalog page"""
-    
-    st.title("🧪 Test Catalog")
-    st.markdown("*Complete listing of available analytical tests with CA ELAP 2025 pricing*")
-    
-    active_analytes = st.session_state.analytes[st.session_state.analytes['active']]
-    
-    # Filters
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        categories = ["All"] + list(active_analytes['category'].unique())
-        selected_category = st.selectbox("Filter by Category", categories)
-    
-    with col2:
-        if 'water_type' in active_analytes.columns:
-            water_types = ["All"] + list(active_analytes['water_type'].unique())
-        else:
-            water_types = ["All"]
-        selected_water = st.selectbox("Water Type", water_types)
-    
-    with col3:
-        max_price = int(active_analytes['price'].max()) + 100 if not active_analytes.empty else 1000
-        price_range = st.slider(
-            "Price Range ($)",
-            min_value=0,
-            max_value=max_price,
-            value=(0, max_price)
-        )
-    
-    with col4:
-        search_term = st.text_input("🔍 Search Tests", placeholder="Enter test name...")
-    
-    # Apply filters
-    filtered_df = active_analytes.copy()
-    
-    if selected_category != "All":
-        filtered_df = filtered_df[filtered_df['category'] == selected_category]
-    
-    if selected_water != "All" and 'water_type' in filtered_df.columns:
-        filtered_df = filtered_df[filtered_df['water_type'] == selected_water]
-    
-    filtered_df = filtered_df[
-        (filtered_df['price'] >= price_range[0]) & 
-        (filtered_df['price'] <= price_range[1])
-    ]
-    
-    if search_term:
-        filtered_df = filtered_df[
-            filtered_df['name'].str.contains(search_term, case=False, na=False) |
-            filtered_df['method'].str.contains(search_term, case=False, na=False)
-        ]
-    
-    st.markdown("---")
-    st.markdown(f"**Showing {len(filtered_df)} of {len(active_analytes)} tests**")
-    
-    # Display table with available columns only
-    available_cols = ['name', 'method', 'technology', 'category', 'price', 'sku']
-    if 'water_type' in filtered_df.columns:
-        available_cols.insert(4, 'water_type')
-    if 'margin_percent' in filtered_df.columns:
-        available_cols.insert(-1, 'margin_percent')
-    
-    display_cols = [c for c in available_cols if c in filtered_df.columns]
-    display_df = filtered_df[display_cols].copy()
-    
-    # Rename columns
-    col_names = {
-        'name': 'Test Name',
-        'method': 'Method',
-        'technology': 'Technology',
-        'category': 'Category',
-        'water_type': 'Water Type',
-        'price': 'Price',
-        'margin_percent': 'Margin %',
-        'sku': 'SKU'
-    }
-    display_df.columns = [col_names.get(c, c) for c in display_df.columns]
-    
-    # Format columns
-    if 'Price' in display_df.columns:
-        display_df['Price'] = display_df['Price'].apply(lambda x: f"${x:.2f}")
-    if 'Margin %' in display_df.columns:
-        display_df['Margin %'] = display_df['Margin %'].apply(lambda x: f"{x:.1f}%")
-    
-    st.dataframe(display_df, use_container_width=True, hide_index=True, height=500)
-    
-    # Export options
-    st.markdown("---")
-    col1, col2, col3 = st.columns([1, 1, 2])
-    
-    with col1:
-        csv = filtered_df.to_csv(index=False)
-        st.download_button(
-            "📥 Export to CSV",
-            csv,
-            "kelp_filtered_tests.csv",
-            "text/csv",
-            use_container_width=True
-        )
-    
-    with col2:
-        json_data = filtered_df.to_json(orient='records')
-        st.download_button(
-            "📥 Export to JSON",
-            json_data,
-            "kelp_filtered_tests.json",
-            "application/json",
-            use_container_width=True
-        )
-
-
-def render_bundle_builder():
-    """Render the bundle builder page"""
-    
-    st.title("📦 Bundle Builder")
-    st.markdown("*Create custom test bundles with automatic pricing calculations*")
-    
-    tab1, tab2, tab3 = st.tabs(["📋 Existing Bundles", "➕ Create New Bundle", "✏️ Edit Bundle"])
-    
-    with tab1:
-        st.subheader("Current Test Bundles")
-        
-        active_kits = st.session_state.test_kits[st.session_state.test_kits['active']]
-        
-        if not active_kits.empty:
-            for idx, kit in active_kits.iterrows():
-                kit_name = kit.get('name', f'Bundle {idx}')
-                kit_code = kit.get('code', 'N/A')
-                kit_category = kit.get('category', 'Uncategorized')
-                kit_description = kit.get('description', '')
-                kit_discount = kit.get('discount_percent', 0)
-                kit_analyte_ids = kit.get('analyte_ids', [])
-                
-                # Handle if analyte_ids is a string (from CSV import)
-                if isinstance(kit_analyte_ids, str):
-                    try:
-                        kit_analyte_ids = json.loads(kit_analyte_ids)
-                    except:
-                        kit_analyte_ids = []
-                
-                with st.expander(f"**{kit_name}** ({kit_code}) - {kit_category}", expanded=False):
-                    col1, col2 = st.columns([2, 1])
-                    
-                    with col1:
-                        st.markdown(f"**Description:** {kit_description}")
-                        st.markdown(f"**Discount:** {kit_discount}%")
-                        
-                        # Get included tests
-                        included_tests = st.session_state.analytes[
-                            st.session_state.analytes['id'].isin(kit_analyte_ids)
-                        ]
-                        
-                        st.markdown("**Included Tests:**")
-                        for _, test in included_tests.iterrows():
-                            st.markdown(f"- {test['name']} ({test['method']}) - ${test['price']:.2f}")
-                    
-                    with col2:
-                        pricing = calculate_kit_pricing(kit_analyte_ids, kit_discount)
-                        
-                        st.metric("Individual Total", f"${pricing['individual_total']:.2f}")
-                        st.metric("Bundle Price", f"${pricing['kit_price']:.2f}", 
-                                  delta=f"-${pricing['savings']:.2f} savings")
-                        st.metric("Margin", f"{pricing['margin_percent']:.1f}%")
-        else:
-            st.info("No bundles created yet. Use the 'Create New Bundle' tab to get started.")
-    
-    with tab2:
-        st.subheader("Create New Test Bundle")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            bundle_name = st.text_input("Bundle Name", placeholder="e.g., Essential Home Water Kit")
-            bundle_code = st.text_input("Bundle Code", placeholder="e.g., RES-001")
-            bundle_category = st.selectbox("Category", ["Residential", "Commercial", "Real Estate", "Specialty", "Industrial"])
-            bundle_description = st.text_area("Description", placeholder="Brief description...")
-        
-        with col2:
-            discount_percent = st.slider("Discount Percentage", 0.0, 50.0, 15.0, 0.5)
-            
-            st.markdown("**Select Tests to Include:**")
-            
-            active_analytes = st.session_state.analytes[st.session_state.analytes['active']]
-            
-            selected_ids = []
-            for category in active_analytes['category'].unique():
-                cat_tests = active_analytes[active_analytes['category'] == category]
-                
-                with st.expander(f"{category} ({len(cat_tests)} tests)"):
-                    for _, test in cat_tests.iterrows():
-                        if st.checkbox(
-                            f"{test['name']} - ${test['price']:.2f}",
-                            key=f"new_bundle_{test['id']}"
-                        ):
-                            selected_ids.append(test['id'])
-        
-        st.markdown("---")
-        st.subheader("📊 Pricing Preview")
-        
-        if selected_ids:
-            pricing = calculate_kit_pricing(selected_ids, discount_percent)
-            
-            col1, col2, col3, col4 = st.columns(4)
-            
-            with col1:
-                st.metric("Tests Included", pricing['test_count'])
-            with col2:
-                st.metric("Individual Total", f"${pricing['individual_total']:.2f}")
-            with col3:
-                st.metric("Bundle Price", f"${pricing['kit_price']:.2f}")
-            with col4:
-                st.metric("Customer Savings", f"${pricing['savings']:.2f}")
-            
-            if st.button("💾 Create Bundle", type="primary", use_container_width=True):
-                if bundle_name and bundle_code:
-                    new_kit = {
-                        "id": len(st.session_state.test_kits) + 1,
-                        "name": bundle_name,
-                        "code": bundle_code,
-                        "category": bundle_category,
-                        "description": bundle_description,
-                        "analyte_ids": selected_ids,
-                        "discount_percent": discount_percent,
-                        "active": True,
-                        "created_date": datetime.now().strftime('%Y-%m-%d')
-                    }
-                    
-                    new_kit_df = pd.DataFrame([new_kit])
-                    st.session_state.test_kits = pd.concat(
-                        [st.session_state.test_kits, new_kit_df], 
-                        ignore_index=True
-                    )
-                    
-                    log_audit('test_kit', bundle_code, 'created', '', bundle_name, 'CREATE')
-                    st.success(f"✅ Bundle '{bundle_name}' created successfully!")
-                    st.rerun()
-                else:
-                    st.error("Please enter a bundle name and code.")
-        else:
-            st.info("Select tests above to see pricing preview.")
-    
-    with tab3:
-        st.subheader("Edit Existing Bundle")
-        
-        active_kits = st.session_state.test_kits[st.session_state.test_kits['active']]
-        
-        if not active_kits.empty:
-            kit_options = {}
-            for idx, kit in active_kits.iterrows():
-                kit_name = kit.get('name', f'Bundle {idx}')
-                kit_code = kit.get('code', 'N/A')
-                kit_id = kit.get('id', idx)
-                kit_options[f"{kit_name} ({kit_code})"] = kit_id
-            
-            selected_kit_name = st.selectbox("Select Bundle to Edit", list(kit_options.keys()))
-            selected_kit_id = kit_options[selected_kit_name]
-            
-            kit = active_kits[active_kits['id'] == selected_kit_id].iloc[0]
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                edit_name = st.text_input("Bundle Name", value=kit.get('name', ''), key="edit_name")
-                edit_code = st.text_input("Bundle Code", value=kit.get('code', ''), key="edit_code")
-                
-                cat_options = ["Residential", "Commercial", "Real Estate", "Specialty", "Industrial"]
-                current_cat = kit.get('category', 'Residential')
-                cat_index = cat_options.index(current_cat) if current_cat in cat_options else 0
-                
-                edit_category = st.selectbox("Category", cat_options, index=cat_index, key="edit_category")
-                edit_description = st.text_area("Description", value=kit.get('description', ''), key="edit_desc")
-            
-            with col2:
-                edit_discount = st.slider(
-                    "Discount Percentage", 
-                    0.0, 50.0, 
-                    float(kit.get('discount_percent', 0)), 
-                    0.5,
-                    key="edit_discount"
-                )
-                
-                st.markdown("**Current Tests:**")
-                current_test_ids = kit.get('analyte_ids', [])
-                if isinstance(current_test_ids, str):
-                    try:
-                        current_test_ids = json.loads(current_test_ids)
-                    except:
-                        current_test_ids = []
-                
-                for test_id in current_test_ids:
-                    test = st.session_state.analytes[st.session_state.analytes['id'] == test_id]
-                    if not test.empty:
-                        st.markdown(f"✓ {test.iloc[0]['name']} - ${test.iloc[0]['price']:.2f}")
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                if st.button("💾 Save Changes", type="primary", use_container_width=True):
-                    kit_idx = st.session_state.test_kits[
-                        st.session_state.test_kits['id'] == selected_kit_id
-                    ].index[0]
-                    
-                    st.session_state.test_kits.at[kit_idx, 'name'] = edit_name
-                    st.session_state.test_kits.at[kit_idx, 'code'] = edit_code
-                    st.session_state.test_kits.at[kit_idx, 'category'] = edit_category
-                    st.session_state.test_kits.at[kit_idx, 'description'] = edit_description
-                    st.session_state.test_kits.at[kit_idx, 'discount_percent'] = edit_discount
-                    
-                    st.success("✅ Bundle updated successfully!")
-                    st.rerun()
-            
-            with col2:
-                if st.button("🗑️ Delete Bundle", type="secondary", use_container_width=True):
-                    kit_idx = st.session_state.test_kits[
-                        st.session_state.test_kits['id'] == selected_kit_id
-                    ].index[0]
-                    st.session_state.test_kits.at[kit_idx, 'active'] = False
-                    st.warning(f"Bundle deactivated.")
-                    st.rerun()
-        else:
-            st.info("No bundles available to edit.")
-
-
-def render_pricing_analysis():
-    """Render the pricing analysis page"""
-    
-    st.title("💰 Pricing Analysis")
-    st.markdown("*Comprehensive pricing and margin analysis*")
-    
-    active_analytes = st.session_state.analytes[st.session_state.analytes['active']]
-    
-    if active_analytes.empty:
-        st.warning("No active analytes found.")
-        return
-    
-    # Overview metrics
+    # Key metrics
     col1, col2, col3, col4, col5 = st.columns(5)
-    
     with col1:
-        st.metric("Total Tests", len(active_analytes))
+        st.metric("Total Tests", len(active))
     with col2:
-        st.metric("Avg Price", f"${active_analytes['price'].mean():.2f}")
+        st.metric("Avg Price", f"${active['price'].mean():.2f}")
     with col3:
-        st.metric("Min Price", f"${active_analytes['price'].min():.2f}")
+        st.metric("Avg Cost", f"${active['total_cost'].mean():.2f}")
     with col4:
-        st.metric("Max Price", f"${active_analytes['price'].max():.2f}")
+        st.metric("Avg Margin", f"{active['margin_percent'].mean():.1f}%")
     with col5:
-        if 'margin_percent' in active_analytes.columns:
-            avg_margin = active_analytes['margin_percent'].mean()
-        else:
-            avg_margin = 0
-        st.metric("Avg Margin", f"{avg_margin:.1f}%")
+        potable = len(active[active['water_type'] == 'Potable'])
+        st.metric("Potable/Non-Potable", f"{potable}/{len(active)-potable}")
     
     st.markdown("---")
     
@@ -958,328 +378,416 @@ def render_pricing_analysis():
     col1, col2 = st.columns(2)
     
     with col1:
-        st.subheader("📈 Price vs Margin Analysis")
-        
-        if 'margin_percent' in active_analytes.columns:
-            fig = px.scatter(
-                active_analytes,
-                x='price',
-                y='margin_percent',
-                color='category',
-                size='price',
-                hover_name='name',
-                labels={
-                    'price': 'Price ($)',
-                    'margin_percent': 'Margin (%)',
-                    'category': 'Category'
-                },
-                title="Price-Margin Relationship by Category"
-            )
-            fig.update_layout(legend=dict(orientation="h", yanchor="bottom", y=-0.3))
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.info("Margin data not available")
-    
-    with col2:
-        st.subheader("📊 Category Comparison")
-        
-        category_avg = active_analytes.groupby('category')['price'].mean().sort_values(ascending=False)
-        
-        fig = px.bar(
-            x=category_avg.index,
-            y=category_avg.values,
-            labels={'x': 'Category', 'y': 'Average Price ($)'},
-            title="Average Price by Category"
-        )
+        st.subheader("📊 Tests by Category")
+        cat_counts = active['category'].value_counts()
+        fig = px.pie(values=cat_counts.values, names=cat_counts.index, 
+                     color_discrete_sequence=px.colors.qualitative.Set3)
+        fig.update_layout(margin=dict(t=20, b=20, l=20, r=20), showlegend=True,
+                         legend=dict(orientation="h", yanchor="bottom", y=-0.3))
         st.plotly_chart(fig, use_container_width=True)
     
-    st.markdown("---")
+    with col2:
+        st.subheader("💧 Tests by Water Type")
+        water_counts = active['water_type'].value_counts()
+        fig = px.bar(x=water_counts.index, y=water_counts.values, 
+                     color=water_counts.index,
+                     color_discrete_map={"Potable": "#00B4D8", "Non-Potable": "#FF6B35"})
+        fig.update_layout(margin=dict(t=20, b=20), showlegend=False,
+                         xaxis_title="", yaxis_title="Number of Tests")
+        st.plotly_chart(fig, use_container_width=True)
     
-    # Detailed Analysis
-    st.subheader("📋 Detailed Category Analysis")
-    
-    category_analysis = []
-    for category in active_analytes['category'].unique():
-        cat_data = active_analytes[active_analytes['category'] == category]
-        
-        avg_margin = 0
-        if 'margin_percent' in cat_data.columns:
-            avg_margin = cat_data['margin_percent'].mean()
-        
-        avg_cost = 0
-        if 'total_cost' in cat_data.columns:
-            avg_cost = cat_data['total_cost'].mean()
-        
-        category_analysis.append({
-            'Category': category,
-            'Tests': len(cat_data),
-            'Avg Price': f"${cat_data['price'].mean():.2f}",
-            'Price Range': f"${cat_data['price'].min():.0f} - ${cat_data['price'].max():.0f}",
-            'Avg Margin': f"{avg_margin:.1f}%",
-            'Avg Cost': f"${avg_cost:.2f}",
-            'Total Revenue': f"${cat_data['price'].sum():,.2f}"
-        })
-    
-    df_analysis = pd.DataFrame(category_analysis)
-    st.dataframe(df_analysis, use_container_width=True, hide_index=True)
-    
-    # Margin alerts
-    if 'margin_percent' in active_analytes.columns:
-        st.markdown("---")
-        st.subheader("⚠️ Margin Alerts")
-        
-        low_margin = active_analytes[active_analytes['margin_percent'] < 40]
-        
-        if not low_margin.empty:
-            st.warning(f"**{len(low_margin)} tests** have margins below 40%")
-            
-            display_cols = ['name', 'method', 'category', 'price']
-            if 'total_cost' in low_margin.columns:
-                display_cols.append('total_cost')
-            display_cols.append('margin_percent')
-            
-            display_df = low_margin[display_cols].copy()
-            display_df = display_df.sort_values('margin_percent')
-            st.dataframe(display_df, use_container_width=True, hide_index=True)
-        else:
-            st.success("✅ All tests have margins above 40%")
+    # Category summary
+    st.subheader("📋 Category Summary")
+    summary = active.groupby('category').agg({
+        'id': 'count',
+        'price': 'mean',
+        'total_cost': 'mean',
+        'margin_percent': 'mean'
+    }).round(2)
+    summary.columns = ['Tests', 'Avg Price ($)', 'Avg Cost ($)', 'Avg Margin (%)']
+    summary = summary.sort_values('Tests', ascending=False)
+    st.dataframe(summary, use_container_width=True)
 
+# ============================================================================
+# PAGE: TEST CATALOG
+# ============================================================================
 
-def render_quote_generator():
-    """Render the quote generator page"""
+def render_test_catalog():
+    st.title("🧪 Test Catalog")
+    st.markdown("*Complete test listing with 2025 CA ELAP pricing*")
     
-    st.title("📝 Quote Generator")
-    st.markdown("*Generate professional quotes for customers*")
+    active = st.session_state.analytes[st.session_state.analytes['active']]
     
-    # Customer Information
-    st.subheader("👤 Customer Information")
-    
-    col1, col2, col3 = st.columns(3)
+    # Filters
+    col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        customer_name = st.text_input("Customer Name", placeholder="Enter customer name")
-        customer_email = st.text_input("Email", placeholder="customer@email.com")
+        categories = ["All"] + list(active['category'].unique())
+        selected_cat = st.selectbox("Category", categories)
     
     with col2:
-        customer_company = st.text_input("Company", placeholder="Company name")
-        customer_phone = st.text_input("Phone", placeholder="(555) 123-4567")
+        water_types = ["All", "Potable", "Non-Potable"]
+        selected_water = st.selectbox("Water Type", water_types)
     
     with col3:
-        quote_date = st.date_input("Quote Date", value=date.today())
-        quote_valid = st.number_input("Quote Valid (days)", value=30, min_value=7, max_value=90)
+        max_price = int(active['price'].max()) + 100
+        price_range = st.slider("Price Range ($)", 0, max_price, (0, max_price))
+    
+    with col4:
+        search = st.text_input("🔍 Search", placeholder="Test name or method...")
+    
+    # Apply filters
+    filtered = active.copy()
+    if selected_cat != "All":
+        filtered = filtered[filtered['category'] == selected_cat]
+    if selected_water != "All":
+        filtered = filtered[filtered['water_type'] == selected_water]
+    filtered = filtered[(filtered['price'] >= price_range[0]) & (filtered['price'] <= price_range[1])]
+    if search:
+        filtered = filtered[filtered['name'].str.contains(search, case=False, na=False) | 
+                           filtered['method'].str.contains(search, case=False, na=False)]
+    
+    st.markdown(f"**Showing {len(filtered)} of {len(active)} tests**")
+    
+    # Display
+    display_cols = ['name', 'method', 'water_type', 'category', 'price', 'total_cost', 'margin_percent']
+    display_df = filtered[display_cols].copy()
+    display_df.columns = ['Test Name', 'Method', 'Water Type', 'Category', 'Price ($)', 'Cost ($)', 'Margin (%)']
+    display_df['Price ($)'] = display_df['Price ($)'].apply(lambda x: f"${x:.2f}")
+    display_df['Cost ($)'] = display_df['Cost ($)'].apply(lambda x: f"${x:.2f}")
+    display_df['Margin (%)'] = display_df['Margin (%)'].apply(lambda x: f"{x:.1f}%")
+    
+    st.dataframe(display_df, use_container_width=True, hide_index=True, height=500)
+    
+    # Export
+    csv = filtered.to_csv(index=False)
+    st.download_button("📥 Export to CSV", csv, "kelp_test_catalog.csv", "text/csv")
+
+# ============================================================================
+# PAGE: COST ANALYSIS
+# ============================================================================
+
+def render_cost_analysis():
+    st.title("💰 Cost Analysis")
+    st.markdown("*Detailed cost breakdown by component*")
+    
+    active = st.session_state.analytes[st.session_state.analytes['active']]
+    
+    # Select test for detailed view
+    test_options = active['name'] + " - " + active['method'] + " (" + active['water_type'] + ")"
+    selected_test = st.selectbox("Select Test for Detailed Cost Breakdown", test_options.tolist())
+    
+    if selected_test:
+        idx = test_options.tolist().index(selected_test)
+        test = active.iloc[idx]
+        
+        st.markdown("---")
+        
+        col1, col2 = st.columns([1, 2])
+        
+        with col1:
+            st.subheader("📋 Test Details")
+            st.markdown(f"**Name:** {test['name']}")
+            st.markdown(f"**Method:** {test['method']}")
+            st.markdown(f"**Water Type:** {test['water_type']}")
+            st.markdown(f"**Category:** {test['category']}")
+            st.markdown(f"**Method Group:** {test['method_group']}")
+            
+            st.markdown("---")
+            
+            st.markdown(f"### 💵 Price: ${test['price']:.2f}")
+            st.markdown(f"### 📊 Margin: {test['margin_percent']:.1f}%")
+        
+        with col2:
+            st.subheader("💰 Cost Breakdown")
+            
+            # Cost breakdown table
+            cost_data = {
+                'Component': ['Standards', 'Consumables', 'Gases/Utilities', 'Labor', 'Depreciation', 
+                             'Subtotal', 'QC Overhead (20%)', 'Facility Overhead (35%)', 'TOTAL COST'],
+                'Amount ($)': [
+                    f"${test['standards']:.2f}",
+                    f"${test['consumables']:.2f}",
+                    f"${test['gases_utilities']:.2f}",
+                    f"${test['labor']:.2f}",
+                    f"${test['depreciation']:.2f}",
+                    f"${test['subtotal']:.2f}",
+                    f"${test['qc_oh']:.2f}",
+                    f"${test['facility_oh']:.2f}",
+                    f"${test['total_cost']:.2f}"
+                ]
+            }
+            st.dataframe(pd.DataFrame(cost_data), use_container_width=True, hide_index=True)
+            
+            # Cost breakdown chart
+            components = ['Standards', 'Consumables', 'Gases/Utilities', 'Labor', 'Depreciation', 'QC OH', 'Facility OH']
+            values = [test['standards'], test['consumables'], test['gases_utilities'], 
+                     test['labor'], test['depreciation'], test['qc_oh'], test['facility_oh']]
+            
+            fig = px.bar(x=components, y=values, color=components,
+                        title="Cost Components", labels={'x': 'Component', 'y': 'Cost ($)'})
+            fig.update_layout(showlegend=False)
+            st.plotly_chart(fig, use_container_width=True)
     
     st.markdown("---")
     
-    # Test Selection
-    st.subheader("🧪 Select Tests")
+    # Category cost comparison
+    st.subheader("📊 Average Cost by Category")
     
-    col1, col2 = st.columns([2, 1])
+    cat_costs = active.groupby('category').agg({
+        'standards': 'mean',
+        'consumables': 'mean',
+        'labor': 'mean',
+        'depreciation': 'mean',
+        'total_cost': 'mean',
+        'price': 'mean',
+        'margin_percent': 'mean'
+    }).round(2)
     
-    selected_tests = []
-    quantities = {}
+    cat_costs.columns = ['Avg Standards', 'Avg Consumables', 'Avg Labor', 'Avg Depreciation', 
+                         'Avg Total Cost', 'Avg Price', 'Avg Margin %']
+    st.dataframe(cat_costs, use_container_width=True)
+
+# ============================================================================
+# PAGE: METALS CALCULATOR
+# ============================================================================
+
+def render_metals_calculator():
+    st.title("🧮 Metals Panel Calculator")
+    st.markdown("*Calculate tiered pricing for ICP-MS metals analysis*")
+    
+    st.markdown("---")
+    
+    col1, col2 = st.columns(2)
     
     with col1:
-        active_analytes = st.session_state.analytes[st.session_state.analytes['active']]
+        st.subheader("🚰 Potable Water - EPA 200.8")
+        st.markdown("**Pricing:** $70 first metal + $12 each additional")
+        st.markdown("**Available Metals:** Aluminum, Antimony, Arsenic, Barium, Beryllium, Cadmium, Chromium, Cobalt, Copper, Lead, Manganese, Mercury, Molybdenum, Nickel, Selenium, Silver, Thallium, Thorium, Uranium, Vanadium, Zinc")
         
-        for category in active_analytes['category'].unique():
-            cat_tests = active_analytes[active_analytes['category'] == category]
-            
-            with st.expander(f"**{category}** ({len(cat_tests)} tests)", expanded=False):
-                for _, test in cat_tests.iterrows():
-                    col_a, col_b = st.columns([3, 1])
-                    
-                    with col_a:
-                        if st.checkbox(
-                            f"{test['name']} ({test['method']}) - ${test['price']:.2f}",
-                            key=f"quote_test_{test['id']}"
-                        ):
-                            selected_tests.append(test['id'])
-                    
-                    with col_b:
-                        if test['id'] in selected_tests or st.session_state.get(f"quote_test_{test['id']}", False):
-                            qty = st.number_input(
-                                "Qty",
-                                min_value=1,
-                                value=1,
-                                key=f"qty_{test['id']}",
-                                label_visibility="collapsed"
-                            )
-                            quantities[test['id']] = qty
+        potable_metals = ["Aluminum", "Antimony", "Arsenic", "Barium", "Beryllium", "Cadmium", 
+                         "Chromium", "Cobalt", "Copper", "Lead", "Manganese", "Mercury", 
+                         "Molybdenum", "Nickel", "Selenium", "Silver", "Thallium", "Thorium", 
+                         "Uranium", "Vanadium", "Zinc"]
+        
+        selected_potable = st.multiselect("Select Metals (Potable)", potable_metals, key="potable_metals")
+        
+        num_potable = len(selected_potable)
+        price_potable = calculate_metals_price(num_potable, "Potable")
+        
+        st.markdown("---")
+        st.metric("Selected Metals", num_potable)
+        st.metric("Total Price", f"${price_potable:.2f}")
+        
+        if num_potable > 0:
+            st.markdown(f"*Breakdown: $70.00 (first) + ${12.00 * max(0, num_potable-1):.2f} ({max(0, num_potable-1)} additional × $12)*")
     
     with col2:
-        st.markdown("### 💰 Quote Summary")
+        st.subheader("🏭 Non-Potable Water - EPA 6020B")
+        st.markdown("**Pricing:** $130 first metal + $45 each additional")
+        st.markdown("**Available Metals:** Aluminum, Antimony, Arsenic, Barium, Beryllium, Boron, Cadmium, Calcium, Chromium, Cobalt, Copper, Iron, Lead, Magnesium, Manganese, Mercury, Nickel, Potassium, Selenium, Silicon, Silver, Sodium, Thallium, Vanadium, Uranium, Zinc")
         
-        if selected_tests:
-            unique_tests = list(dict.fromkeys(selected_tests))
-            
-            total_amount = 0
-            test_details = []
-            
-            for test_id in unique_tests:
-                test = active_analytes[active_analytes['id'] == test_id]
-                if not test.empty:
-                    qty = quantities.get(test_id, 1)
-                    line_total = test.iloc[0]['price'] * qty
-                    total_amount += line_total
-                    
-                    test_details.append({
-                        'name': test.iloc[0]['name'],
-                        'price': test.iloc[0]['price'],
-                        'qty': qty,
-                        'total': line_total
-                    })
-            
-            st.metric("Tests Selected", len(unique_tests))
-            st.metric("Total", f"${total_amount:,.2f}")
-            
-            # Discount
-            discount_pct = st.slider("Discount %", 0, 30, 0)
-            discount_amount = total_amount * (discount_pct / 100)
-            final_total = total_amount - discount_amount
-            
-            if discount_amount > 0:
-                st.metric("Discount", f"-${discount_amount:,.2f}")
-            
-            st.metric("**Final Total**", f"${final_total:,.2f}")
-        else:
-            st.info("Select tests to see quote summary")
+        nonpotable_metals = ["Aluminum", "Antimony", "Arsenic", "Barium", "Beryllium", "Boron",
+                            "Cadmium", "Calcium", "Chromium", "Cobalt", "Copper", "Iron", 
+                            "Lead", "Magnesium", "Manganese", "Mercury", "Nickel", "Potassium",
+                            "Selenium", "Silicon", "Silver", "Sodium", "Thallium", "Vanadium", 
+                            "Uranium", "Zinc"]
+        
+        selected_nonpotable = st.multiselect("Select Metals (Non-Potable)", nonpotable_metals, key="nonpotable_metals")
+        
+        num_nonpotable = len(selected_nonpotable)
+        price_nonpotable = calculate_metals_price(num_nonpotable, "Non-Potable")
+        
+        st.markdown("---")
+        st.metric("Selected Metals", num_nonpotable)
+        st.metric("Total Price", f"${price_nonpotable:.2f}")
+        
+        if num_nonpotable > 0:
+            st.markdown(f"*Breakdown: $130.00 (first) + ${45.00 * max(0, num_nonpotable-1):.2f} ({max(0, num_nonpotable-1)} additional × $45)*")
     
     st.markdown("---")
     
-    # Generate Quote
-    if selected_tests and customer_name:
-        if st.button("📄 Generate Quote", type="primary", use_container_width=True):
-            quote_content = f"""# KELP Laboratory Services
-## Professional Quote
-
-**Quote Date:** {quote_date.strftime('%B %d, %Y')}
-**Valid Until:** {(quote_date + timedelta(days=quote_valid)).strftime('%B %d, %Y')}
-
----
-
-### Customer Information
-**Name:** {customer_name}
-**Company:** {customer_company or 'N/A'}
-**Email:** {customer_email or 'N/A'}
-**Phone:** {customer_phone or 'N/A'}
-
----
-
-### Services Quoted
-
-| Test Name | Unit Price | Qty | Total |
-|-----------|------------|-----|-------|
-"""
-            for detail in test_details:
-                quote_content += f"| {detail['name']} | ${detail['price']:.2f} | {detail['qty']} | ${detail['total']:.2f} |\n"
-            
-            quote_content += f"""
----
-
-**Subtotal:** ${total_amount:,.2f}
-**Discount ({discount_pct}%):** ${discount_amount:,.2f}
-**Total:** ${final_total:,.2f}
-
----
-
-*Thank you for choosing KELP Laboratory Services!*
-
-**California ELAP Certified | ISO 17025 Compliant**
-"""
-            
-            st.markdown(quote_content)
-            
-            st.download_button(
-                "📥 Download Quote",
-                quote_content,
-                f"KELP_Quote_{customer_name.replace(' ', '_')}_{quote_date.strftime('%Y%m%d')}.md",
-                "text/markdown",
-                use_container_width=True
-            )
-    elif not customer_name:
-        st.info("Please enter customer information to generate a quote.")
-    else:
-        st.info("Select tests to generate a quote.")
-
-
-def render_settings():
-    """Render the settings page"""
+    # Pre-built panels
+    st.subheader("📦 Pre-Built Metals Panels")
     
-    st.title("⚙️ Settings")
-    st.markdown("*Manage system configuration and data*")
+    col1, col2 = st.columns(2)
     
-    tab1, tab2, tab3 = st.tabs(["📊 Data Management", "📋 Audit Log", "ℹ️ About"])
+    with col1:
+        st.markdown("### RCRA 8 Metals (Non-Potable)")
+        st.markdown("**Metals:** Ag, As, Ba, Cd, Cr, Hg, Pb, Se")
+        st.markdown("**Method:** EPA 6020B")
+        st.metric("Panel Price", "$540.00")
+    
+    with col2:
+        st.markdown("### Full Metals Panel Examples")
+        st.markdown("**10 Metals (Potable):** $70 + (9 × $12) = $178")
+        st.markdown("**15 Metals (Potable):** $70 + (14 × $12) = $238")
+        st.markdown("**10 Metals (Non-Potable):** $130 + (9 × $45) = $535")
+
+# ============================================================================
+# PAGE: BUNDLE BUILDER
+# ============================================================================
+
+def render_bundle_builder():
+    st.title("📦 Bundle Builder")
+    st.markdown("*Create and manage test bundles*")
+    
+    tab1, tab2 = st.tabs(["📋 Existing Bundles", "➕ Create New Bundle"])
     
     with tab1:
-        st.subheader("Data Management")
+        active_kits = st.session_state.test_kits[st.session_state.test_kits['active']]
+        
+        if not active_kits.empty:
+            for _, kit in active_kits.iterrows():
+                kit_name = kit.get('name', 'Unnamed')
+                kit_code = kit.get('code', 'N/A')
+                kit_category = kit.get('category', 'N/A')
+                kit_desc = kit.get('description', '')
+                kit_discount = kit.get('discount_percent', 0)
+                kit_analyte_ids = kit.get('analyte_ids', [])
+                
+                if isinstance(kit_analyte_ids, str):
+                    try:
+                        kit_analyte_ids = json.loads(kit_analyte_ids)
+                    except:
+                        kit_analyte_ids = []
+                
+                with st.expander(f"**{kit_name}** ({kit_code}) - {kit_category}"):
+                    pricing = calculate_kit_pricing(kit_analyte_ids, kit_discount)
+                    
+                    col1, col2 = st.columns([2, 1])
+                    
+                    with col1:
+                        st.markdown(f"**Description:** {kit_desc}")
+                        st.markdown(f"**Discount:** {kit_discount}%")
+                        st.markdown("**Included Tests:**")
+                        
+                        included = st.session_state.analytes[st.session_state.analytes['id'].isin(kit_analyte_ids)]
+                        for _, test in included.iterrows():
+                            st.markdown(f"- {test['name']} ({test['method']}, {test['water_type']}) - ${test['price']:.2f}")
+                    
+                    with col2:
+                        st.metric("Tests", pricing['test_count'])
+                        st.metric("Individual Total", f"${pricing['individual_total']:.2f}")
+                        st.metric("Bundle Price", f"${pricing['kit_price']:.2f}")
+                        st.metric("Customer Saves", f"${pricing['savings']:.2f}")
+        else:
+            st.info("No bundles created yet.")
+    
+    with tab2:
+        st.subheader("Create New Bundle")
         
         col1, col2 = st.columns(2)
         
         with col1:
-            st.markdown("### Export Data")
-            
-            csv = st.session_state.analytes.to_csv(index=False)
-            st.download_button(
-                "📥 Export Test Catalog",
-                csv,
-                "kelp_test_catalog_export.csv",
-                "text/csv",
-                use_container_width=True
-            )
-            
-            csv_kits = st.session_state.test_kits.to_csv(index=False)
-            st.download_button(
-                "📥 Export Bundles",
-                csv_kits,
-                "kelp_bundles_export.csv",
-                "text/csv",
-                use_container_width=True
-            )
+            new_name = st.text_input("Bundle Name")
+            new_code = st.text_input("Bundle Code")
+            new_category = st.selectbox("Category", ["Residential", "Commercial", "Real Estate", "Specialty", "Industrial"])
+            new_desc = st.text_area("Description")
+            new_discount = st.slider("Discount %", 0.0, 50.0, 15.0, 0.5)
         
         with col2:
-            st.markdown("### Reset Data")
+            st.markdown("**Select Tests:**")
+            active = st.session_state.analytes[st.session_state.analytes['active']]
+            selected_ids = []
             
-            if st.button("🔄 Reset to Default Data", use_container_width=True):
-                st.session_state.analytes = get_default_analytes()
-                st.session_state.test_kits = get_default_test_kits()
-                st.success("Data reset to defaults!")
-                st.rerun()
+            for category in active['category'].unique():
+                cat_tests = active[active['category'] == category]
+                with st.expander(f"{category} ({len(cat_tests)})"):
+                    for _, test in cat_tests.iterrows():
+                        if st.checkbox(f"{test['name']} ({test['water_type']}) - ${test['price']:.2f}", key=f"new_{test['id']}"):
+                            selected_ids.append(test['id'])
+        
+        if selected_ids:
+            st.markdown("---")
+            pricing = calculate_kit_pricing(selected_ids, new_discount)
+            
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric("Tests", pricing['test_count'])
+            with col2:
+                st.metric("Individual Total", f"${pricing['individual_total']:.2f}")
+            with col3:
+                st.metric("Bundle Price", f"${pricing['kit_price']:.2f}")
+            with col4:
+                st.metric("Savings", f"${pricing['savings']:.2f}")
+            
+            if st.button("💾 Create Bundle", type="primary"):
+                if new_name and new_code:
+                    new_kit = pd.DataFrame([{
+                        "id": len(st.session_state.test_kits) + 1,
+                        "name": new_name, "code": new_code, "category": new_category,
+                        "description": new_desc, "analyte_ids": selected_ids,
+                        "discount_percent": new_discount, "active": True
+                    }])
+                    st.session_state.test_kits = pd.concat([st.session_state.test_kits, new_kit], ignore_index=True)
+                    st.success(f"✅ Bundle '{new_name}' created!")
+                    st.rerun()
+                else:
+                    st.error("Please enter bundle name and code.")
+
+# ============================================================================
+# PAGE: SETTINGS
+# ============================================================================
+
+def render_settings():
+    st.title("⚙️ Settings")
+    
+    tab1, tab2, tab3 = st.tabs(["📊 Data Export", "📋 Audit Log", "ℹ️ About"])
+    
+    with tab1:
+        st.subheader("Export Data")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            csv_analytes = st.session_state.analytes.to_csv(index=False)
+            st.download_button("📥 Export Test Catalog", csv_analytes, "kelp_analytes.csv", "text/csv", use_container_width=True)
+        
+        with col2:
+            csv_kits = st.session_state.test_kits.to_csv(index=False)
+            st.download_button("📥 Export Bundles", csv_kits, "kelp_bundles.csv", "text/csv", use_container_width=True)
+        
+        st.markdown("---")
+        
+        if st.button("🔄 Reset to Default Data"):
+            st.session_state.analytes = get_analytes_data()
+            st.session_state.test_kits = get_test_kits_data()
+            st.success("Data reset to defaults!")
+            st.rerun()
     
     with tab2:
-        st.subheader("📋 Audit Log")
-        
+        st.subheader("Audit Log")
         if 'audit_log' in st.session_state and not st.session_state.audit_log.empty:
-            st.dataframe(
-                st.session_state.audit_log.sort_values('timestamp', ascending=False),
-                use_container_width=True,
-                hide_index=True
-            )
+            st.dataframe(st.session_state.audit_log.sort_values('timestamp', ascending=False), 
+                        use_container_width=True, hide_index=True)
         else:
             st.info("No audit entries yet.")
     
     with tab3:
-        st.subheader("ℹ️ About")
-        
+        st.subheader("About KELP Price Management System")
         st.markdown("""
-        ### KELP Price Management System v2.1
+        ### Version 3.0 - November 2025
         
         **Features:**
-        - ✅ Complete test catalog with CA ELAP 2025 pricing
+        - ✅ Complete test catalog with full cost breakdown
+        - ✅ Water type separation (Potable vs Non-Potable)
+        - ✅ Tiered metals pricing calculator
         - ✅ Bundle builder with automatic pricing
-        - ✅ Quote generator for customer proposals
-        - ✅ Pricing analysis and margin tracking
-        - ✅ Full audit trail
+        - ✅ Cost analysis with component breakdown
+        
+        **Pricing Model:**
+        - **EPA 200.8 (Potable):** $70 first metal + $12 each additional
+        - **EPA 6020B (Non-Potable):** $130 first metal + $45 each additional
+        
+        **Cost Components:**
+        - Standards, Consumables, Gases/Utilities
+        - Labor, Depreciation
+        - QC Overhead (20%), Facility Overhead (35%)
         
         ---
         
-        **California ELAP Certified Laboratory**
-        - EPA Method Compliance
-        - ISO 17025 Quality Standards
-        - TNI Accredited
-        
-        ---
-        
-        *Built with KETOS brand identity.*
+        *California ELAP Certified | ISO 17025 Compliant | TNI Accredited*
         """)
 
 # ============================================================================
@@ -1287,33 +795,25 @@ def render_settings():
 # ============================================================================
 
 def main():
-    """Main application entry point"""
-    
-    # Apply custom CSS
     apply_custom_css()
-    
-    # Initialize session state
     init_session_state()
     
-    # Render sidebar and get current page
     current_page = render_sidebar()
     
-    # Route to appropriate page
     if current_page == "Dashboard":
         render_dashboard()
     elif current_page == "Test Catalog":
         render_test_catalog()
+    elif current_page == "Cost Analysis":
+        render_cost_analysis()
     elif current_page == "Bundle Builder":
         render_bundle_builder()
-    elif current_page == "Pricing Analysis":
-        render_pricing_analysis()
-    elif current_page == "Quote Generator":
-        render_quote_generator()
+    elif current_page == "Metals Calculator":
+        render_metals_calculator()
     elif current_page == "Settings":
         render_settings()
     else:
         render_dashboard()
-
 
 if __name__ == "__main__":
     main()
