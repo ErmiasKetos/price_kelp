@@ -255,8 +255,16 @@ def get_test_kits_data():
 
 def init_session_state():
     """Initialize all session state variables"""
+    # Check if analytes exist and have required columns
+    required_cols = ['method_group', 'standards', 'consumables', 'labor', 'depreciation', 'qc_oh', 'facility_oh']
+    
     if 'analytes' not in st.session_state:
         st.session_state.analytes = get_analytes_data()
+    else:
+        # Check if required columns exist, if not, refresh data
+        existing_cols = st.session_state.analytes.columns.tolist()
+        if not all(col in existing_cols for col in required_cols):
+            st.session_state.analytes = get_analytes_data()
     
     if 'test_kits' not in st.session_state:
         st.session_state.test_kits = get_test_kits_data()
@@ -487,16 +495,17 @@ def render_cost_analysis():
         
         with col1:
             st.subheader("📋 Test Details")
-            st.markdown(f"**Name:** {test['name']}")
-            st.markdown(f"**Method:** {test['method']}")
-            st.markdown(f"**Water Type:** {test['water_type']}")
-            st.markdown(f"**Category:** {test['category']}")
-            st.markdown(f"**Method Group:** {test['method_group']}")
+            st.markdown(f"**Name:** {test.get('name', 'N/A')}")
+            st.markdown(f"**Method:** {test.get('method', 'N/A')}")
+            st.markdown(f"**Water Type:** {test.get('water_type', 'N/A')}")
+            st.markdown(f"**Category:** {test.get('category', 'N/A')}")
+            if 'method_group' in test.index:
+                st.markdown(f"**Method Group:** {test['method_group']}")
             
             st.markdown("---")
             
-            st.markdown(f"### 💵 Price: ${test['price']:.2f}")
-            st.markdown(f"### 📊 Margin: {test['margin_percent']:.1f}%")
+            st.markdown(f"### 💵 Price: ${test.get('price', 0):.2f}")
+            st.markdown(f"### 📊 Margin: {test.get('margin_percent', 0):.1f}%")
         
         with col2:
             st.subheader("💰 Cost Breakdown")
@@ -506,23 +515,23 @@ def render_cost_analysis():
                 'Component': ['Standards', 'Consumables', 'Gases/Utilities', 'Labor', 'Depreciation', 
                              'Subtotal', 'QC Overhead (20%)', 'Facility Overhead (35%)', 'TOTAL COST'],
                 'Amount ($)': [
-                    f"${test['standards']:.2f}",
-                    f"${test['consumables']:.2f}",
-                    f"${test['gases_utilities']:.2f}",
-                    f"${test['labor']:.2f}",
-                    f"${test['depreciation']:.2f}",
-                    f"${test['subtotal']:.2f}",
-                    f"${test['qc_oh']:.2f}",
-                    f"${test['facility_oh']:.2f}",
-                    f"${test['total_cost']:.2f}"
+                    f"${test.get('standards', 0):.2f}",
+                    f"${test.get('consumables', 0):.2f}",
+                    f"${test.get('gases_utilities', 0):.2f}",
+                    f"${test.get('labor', 0):.2f}",
+                    f"${test.get('depreciation', 0):.2f}",
+                    f"${test.get('subtotal', 0):.2f}",
+                    f"${test.get('qc_oh', 0):.2f}",
+                    f"${test.get('facility_oh', 0):.2f}",
+                    f"${test.get('total_cost', 0):.2f}"
                 ]
             }
             st.dataframe(pd.DataFrame(cost_data), use_container_width=True, hide_index=True)
             
             # Cost breakdown chart
             components = ['Standards', 'Consumables', 'Gases/Utilities', 'Labor', 'Depreciation', 'QC OH', 'Facility OH']
-            values = [test['standards'], test['consumables'], test['gases_utilities'], 
-                     test['labor'], test['depreciation'], test['qc_oh'], test['facility_oh']]
+            values = [test.get('standards', 0), test.get('consumables', 0), test.get('gases_utilities', 0), 
+                     test.get('labor', 0), test.get('depreciation', 0), test.get('qc_oh', 0), test.get('facility_oh', 0)]
             
             fig = px.bar(x=components, y=values, color=components,
                         title="Cost Components", labels={'x': 'Component', 'y': 'Cost ($)'})
