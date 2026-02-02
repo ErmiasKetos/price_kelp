@@ -161,7 +161,7 @@ def calculate_metals_price(num_metals, water_type):
     if water_type == "Potable":
         return 70.00 + (12.00 * max(0, num_metals - 1))
     else:
-        return 130.00 + (45.00 * max(0, num_metals - 1))
+        return 130.00 + (12.00 * max(0, num_metals - 1))
 
 def recalc_margin(row):
     if row['price'] > 0:
